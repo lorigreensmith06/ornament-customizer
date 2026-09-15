@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "start": "serve -s dist -l tcp://0.0.0.0:$PORT",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -14,6 +15,7 @@
     "@react-three/fiber": "^9.7.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "serve": "^14.2.6",
     "three": "^0.185.1"
   },
   "devDependencies": {
