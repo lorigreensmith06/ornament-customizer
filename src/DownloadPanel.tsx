@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const API = 'http://127.0.0.1:8000'
+const API = import.meta.env.VITE_API_URL || 'http://3.144.73.46:8000'
 const DESIGN_IDS: Record<string, string> = {
   '/models/snowflake_two_pairs.stl': 'two_branch',
   '/models/snowflake_three_pairs.stl': 'three_branch',
