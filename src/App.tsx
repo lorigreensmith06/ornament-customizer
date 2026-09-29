@@ -372,105 +372,106 @@ export default function App() {
     useState('lato')
 
   const [textSize, setTextSize] =
-    useState(1)
+    useState(1.0)
 
   return (
     <main className="app">
-<section className="controls">
-  <h1>Personalized Snowflake Ornament</h1>
+      <section className="controls">
+        <h1>Personalized Snowflake Ornament</h1>
 
-  <div className="control-section">
-    <div className="section-heading">Design</div>
+        <div className="control-section">
+          <div className="section-heading">Design</div>
 
-    <label htmlFor="design">Snowflake design</label>
-    <select
-      id="design"
-      value={selectedModel}
-      onChange={(event) => setSelectedModel(event.target.value)}
-    >
-      {designs.map((design) => (
-        <option key={design.file} value={design.file}>
-          {design.label}
-        </option>
-      ))}
-    </select>
-  </div>
-
-  <div className="control-section">
-    <div className="section-heading">Personalization</div>
-
-    <label className="checkbox-label">
-      <input
-        type="checkbox"
-        checked={showName}
-        onChange={(event) => setShowName(event.target.checked)}
-      />
-      <span>Add name</span>
-    </label>
-
-    {showName && (
-      <div className="personalization-options">
-        <label htmlFor="name">Name</label>
-        <input
-          id="name"
-          value={name}
-          maxLength={24}
-          aria-describedby="name-help"
-          onChange={(event) =>
-            setName(
-              event.target.value
-                .toUpperCase()
-                .replace(/[^A-Z0-9 '\-]/g, ''),
-            )
-          }
-        />
-
-        <small id="name-help" className="help-text">
-          24 characters max · letters, numbers, spaces, hyphens and apostrophes.
-        </small>
-
-        <label htmlFor="font">Font</label>
-        <select
-          id="font"
-          value={selectedFont}
-          onChange={(event) => setSelectedFont(event.target.value)}
-        >
-          {fonts.map((font) => (
-            <option key={font.value} value={font.value}>
-              {font.label}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor="text-size">Name size</label>
-
-        <div className="size-control">
-          <input
-            id="text-size"
-            type="range"
-            min="0.75"
-            max="2"
-            step="0.05"
-            value={textSize}
-            onChange={(event) =>
-              setTextSize(Number(event.target.value))
-            }
-          />
-
-          <div className="size-labels">
-            <span>Small</span>
-            <span>Large</span>
-          </div>
+          <label htmlFor="design">Snowflake design</label>
+          <select
+            id="design"
+            value={selectedModel}
+            onChange={(event) => setSelectedModel(event.target.value)}
+          >
+            {designs.map((design) => (
+              <option key={design.file} value={design.file}>
+                {design.label}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-    )}
-  </div>
 
-  <DownloadPanel
-    name={showName ? name : ''}
-    selectedModel={selectedModel}
-  />
-</section>
+        <div className="control-section">
+          <div className="section-heading">Personalization</div>
+
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={showName}
+              onChange={(event) => setShowName(event.target.checked)}
+            />
+            <span>Add name</span>
+          </label>
+
+          {showName && (
+            <div className="personalization-options">
+              <label htmlFor="name">Name</label>
+              <input
+                id="name"
+                value={name}
+                maxLength={24}
+                aria-describedby="name-help"
+                onChange={(event) =>
+                  setName(
+                    event.target.value
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9 '\-]/g, ''),
+                  )
+                }
+              />
+
+              <small id="name-help" className="help-text">
+                24 characters max · letters, numbers, spaces, hyphens and apostrophes.
+              </small>
+
+              <label htmlFor="font">Font</label>
+              <select
+                id="font"
+                value={selectedFont}
+                onChange={(event) => setSelectedFont(event.target.value)}
+              >
+                {fonts.map((font) => (
+                  <option key={font.value} value={font.value}>
+                    {font.label}
+                  </option>
+                ))}
+              </select>
+
+              <label htmlFor="text-size">Name size</label>
+
+              <div className="size-control">
+                <input
+                  id="text-size"
+                  type="range"
+                  min="0.75"
+                  max="2"
+                  step="0.05"
+                  value={textSize}
+                  onChange={(event) =>
+                    setTextSize(Number(event.target.value))
+                  }
+                />
+
+                <div className="size-labels">
+                  <span>0.75</span>
+                  <span className="current-value">{textSize.toFixed(2)}</span>
+                  <span>2.0</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DownloadPanel
+          name={showName ? name : ''}
+          selectedModel={selectedModel}
+        />
+      </section>
 
       <section className="preview">
         <PreviewErrorBoundary

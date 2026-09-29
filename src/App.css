@@ -9,95 +9,42 @@ body,
   overflow-x: hidden;
 }
 
-
-.controls .size-control input[type="range"] {
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 0;
-  margin: 0.25rem 0 0;
-  padding: 0;
-}
-
-.size-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.35rem;
-  color: #777;
-  font-size: 0.75rem;
-}
-
-
-.controls small {
-  display: block;
-  max-width: 100%;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
-}
 body {
   margin: 0;
   font-family: Arial, sans-serif;
   color: #252525;
   background: #f7f5f1;
 }
-h1 {
-    color: #252525;
-    font-size: 2rem;
-}
 .app {
   display: grid;
-  grid-template-columns: minmax(260px, 360px) 1fr;
-  grid-template-rows: auto 1fr;
-  grid-template-areas:
-    "title preview"
-    "controls preview";
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  grid-template-areas: "controls preview";
   min-height: 100vh;
-}
-
-/* TITLE */
-
-.title {
-  grid-area: title;
-  margin: 0;
-  padding: 3rem 2rem 0;
-  background: white;
-  font-size: 1.5rem;
-  line-height: 0.95;
-  color: #252525;
-  z-index: 1;
-}
-@media (max-width: 700px) {
-  .title {
-    padding: 1.25rem;
-    font-size: 1.75rem;
-    line-height: 1.05;
-    color: #252525 !important;
-  }
 }
 /* CONTROLS */
 
 .controls {
-  padding: 2.5rem 2rem;
+  padding: 2rem 1.75rem;
   background: white;
   box-shadow: 4px 0 20px rgb(0 0 0 / 8%);
   z-index: 1;
 }
 
 .controls h1 {
-  margin: 0 0 3rem;
-  font-size: 2rem;
-  line-height: 0.95;
+  margin: 0 0 2rem;
+  font-size: 1.75rem;
+  line-height: 1.1;
   color: #252525;
 }
 
 /* Groups */
 
 .control-section {
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .section-heading {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   color: #888;
   font-size: 0.75rem;
   font-weight: 700;
@@ -109,7 +56,7 @@ h1 {
 
 .controls label {
   display: block;
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.35rem;
   font-weight: 700;
   text-align: left;
 }
@@ -121,13 +68,21 @@ h1 {
 .controls select {
   display: block;
   width: 100%;
-  height: 3rem;
-  padding: 0.75rem;
+  height: 2.6rem;
+  padding: 0.6rem 0.75rem;
   border: 1px solid #ccc;
   border-radius: 4px;
   background: white;
   color: #252525;
   font: inherit;
+}
+
+.controls input[type="text"]:focus,
+.controls input:not([type]):focus,
+.controls select:focus {
+  outline: none;
+  border-color: #c6a15b;
+  box-shadow: 0 0 0 2px rgba(198, 161, 91, 0.2);
 }
 
 .controls select {
@@ -137,11 +92,11 @@ h1 {
 /* Personalization */
 
 .personalization-options {
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
 
 .personalization-options > label:not(:first-child) {
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
 
 /* Checkbox */
@@ -161,7 +116,7 @@ h1 {
   min-height: 0;
   margin: 0;
   padding: 0;
-  accent-color: #a58136;
+  accent-color: #c6a15b;
 }
 
 /* Help text */
@@ -188,6 +143,7 @@ h1 {
   min-height: 0;
   margin: 0.25rem 0 0;
   padding: 0;
+  accent-color: #c6a15b;
 }
 
 .size-labels {
@@ -198,18 +154,29 @@ h1 {
   font-size: 0.75rem;
 }
 
+.size-labels .current-value {
+  font-weight: 600;
+  color: #c6a15b;
+}
+
 /* Generate button */
 
 .controls button {
   width: 100%;
-  min-height: 3.25rem;
+  min-height: 3rem;
   margin-top: 0.5rem;
-  padding: 0.8rem 1rem;
+  padding: 0.75rem 1rem;
   border: 0;
   border-radius: 4px;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  background: #c6a15b;
+  color: white;
+}
+
+.controls button:hover {
+  background: #b8904a;
 }
 
 /* PREVIEW */
@@ -224,41 +191,38 @@ h1 {
 @media (max-width: 700px) {
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 45vh auto;
+    grid-template-rows: 40vh 1fr;
     grid-template-areas:
-      "title"
       "preview"
       "controls";
   }
 
-  .title {
-    grid-area: title;
-    margin: 0;
-    padding: 3rem 2rem 0;
-    background: white;
-    font-size: 2rem;
-    line-height: 0.95;
-    color: #252525 !important;
-    z-index: 1;
-  }
-
   .preview {
     min-height: 0;
-    height: 45vh;
+    height: 40vh;
   }
 
   .controls {
-    padding: 0.5rem 1.25rem 2rem;
+    padding: 1.25rem 1.5rem 2rem;
     box-shadow: none;
   }
 
+  .controls h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .control-section {
+    margin-bottom: 1.5rem;
+  }
+
   .controls label {
-    margin-top: 1.25rem;
+    margin-top: 1rem;
   }
 
   .controls input,
   .controls select,
   .controls button {
-    min-height: 3rem;
+    min-height: 2.75rem;
   }
 }
