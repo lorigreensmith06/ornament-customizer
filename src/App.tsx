@@ -11,6 +11,7 @@ import {
 } from 'three'
 import type { BufferGeometry } from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
+import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import './App.css'
@@ -405,8 +406,9 @@ function Ornament({
     // Do not center or otherwise mutate useLoader's cached STL.
     const opening = measureOpening(source)
 
-    const geometry = source.clone()
-    geometry.computeVertexNormals()
+    // Smooth normals across shallow angles; keep edges >= 60 deg hard.
+    const geometry = toCreasedNormals(source.clone(), Math.PI / 3)
+
     geometry.computeBoundingBox()
 
     return {
