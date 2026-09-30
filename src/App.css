@@ -159,6 +159,16 @@ body {
   color: #c6a15b;
 }
 
+/* Approximate size */
+
+.approx-size {
+  display: block;
+  margin-top: 0.75rem;
+  color: #666;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 /* Generate button */
 
 .controls button {

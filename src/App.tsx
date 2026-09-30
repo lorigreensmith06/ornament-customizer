@@ -1,4 +1,4 @@
-import { Component, Suspense, useEffect, useMemo, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
@@ -171,11 +171,13 @@ function NameAndRails({
   opening,
   textSize,
   selectedFont,
+  onLayout,
 }: {
   name: string
   opening: Opening
   textSize: number
   selectedFont: string
+  onLayout?: (railWidth: number, railTop: number, railBottom: number) => void
 }) {
   // Use the selected font for preview
   const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
@@ -273,6 +275,11 @@ function NameAndRails({
     }
   }, [geometry])
 
+  // Report the rail footprint so the ornament can report its overall size.
+  useEffect(() => {
+    onLayout?.(railWidth, railTop, railBottom)
+  }, [railWidth, railTop, railBottom, onLayout])
+
   return (
     <group>
       {/* Writes the text footprint into the stencil buffer so the
@@ -353,14 +360,37 @@ function Ornament({
   showName,
   textSize,
   selectedFont,
+  onSize,
 }: {
   file: string
   name: string
   showName: boolean
   textSize: number
   selectedFont: string
+  onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
   const source = useLoader(STLLoader, file)
+
+  const [railDims, setRailDims] = useState<{
+    width: number
+    top: number
+    bottom: number
+  } | null>(null)
+
+  // Same-value guard keeps the child -> parent report loop-free.
+  const handleLayout = useCallback(
+    (width: number, top: number, bottom: number) => {
+      setRailDims((prev) =>
+        prev &&
+        prev.width === width &&
+        prev.top === top &&
+        prev.bottom === bottom
+          ? prev
+          : { width, top, bottom },
+      )
+    },
+    [],
+  )
 
   const { geometry, opening } = useMemo(() => {
     // Do not center or otherwise mutate useLoader's cached STL.
@@ -368,12 +398,39 @@ function Ornament({
 
     const geometry = source.clone()
     geometry.computeVertexNormals()
+    geometry.computeBoundingBox()
 
     return {
       geometry,
       opening,
     }
   }, [source])
+
+  // STL coordinates are millimeters; union the snowflake bbox with the
+  // rail boxes for the approximate finished size.
+  useEffect(() => {
+    if (!onSize) return
+    const bounds = geometry.boundingBox!
+    let minX = bounds.min.x
+    let maxX = bounds.max.x
+    let minY = bounds.min.y
+    let maxY = bounds.max.y
+
+    if (showName && railDims) {
+      const halfWidth = railDims.width / 2
+      const halfBar = opening.barHeight / 2
+      minX = Math.min(minX, opening.x - halfWidth)
+      maxX = Math.max(maxX, opening.x + halfWidth)
+      minY = Math.min(minY, railDims.bottom - halfBar)
+      maxY = Math.max(maxY, railDims.top + halfBar)
+    }
+
+    onSize({
+      x: maxX - minX,
+      y: maxY - minY,
+      z: bounds.max.z - bounds.min.z,
+    })
+  }, [geometry, opening, showName, railDims, onSize])
 
   useEffect(() => {
     return () => geometry.dispose()
@@ -409,6 +466,7 @@ function Ornament({
               opening={opening}
               textSize={textSize}
               selectedFont={selectedFont}
+              onLayout={handleLayout}
             />
           </Suspense>
         )}
@@ -465,6 +523,9 @@ export default function App() {
 
   const [textSize, setTextSize] =
     useState(1.0)
+
+  const [ornSize, setOrnSize] =
+    useState<{ x: number; y: number; z: number } | null>(null)
 
   return (
     <main className="app">
@@ -566,6 +627,13 @@ export default function App() {
           selectedFont={selectedFont}
           textSize={textSize}
         />
+
+        {ornSize && (
+          <small className="approx-size">
+            Approx. size: {Math.round(ornSize.x)} × {Math.round(ornSize.y)} mm
+            ({(ornSize.x / 25.4).toFixed(1)} × {(ornSize.y / 25.4).toFixed(1)} in)
+          </small>
+        )}
       </section>
 
       <section className="preview">
@@ -603,6 +671,7 @@ export default function App() {
                 showName={showName}
                 textSize={textSize}
                 selectedFont={selectedFont}
+                onSize={setOrnSize}
               />
             </Suspense>
 
