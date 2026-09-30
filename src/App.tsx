@@ -320,33 +320,37 @@ function NameAndRails({
         </mesh>
       )}
 
-      <mesh
-        position={[opening.x, railTop, opening.z]}
-      >
-        <boxGeometry
-          args={[
-            railWidth,
-            opening.barHeight,
-            opening.depth,
-          ]}
-        />
+      {geometry && (
+        <>
+          <mesh
+            position={[opening.x, railTop, opening.z]}
+          >
+            <boxGeometry
+              args={[
+                railWidth,
+                opening.barHeight,
+                opening.depth,
+              ]}
+            />
 
-        <GoldMaterial />
-      </mesh>
+            <GoldMaterial />
+          </mesh>
 
-      <mesh
-        position={[opening.x, railBottom, opening.z]}
-      >
-        <boxGeometry
-          args={[
-            railWidth,
-            opening.barHeight,
-            opening.depth,
-          ]}
-        />
+          <mesh
+            position={[opening.x, railBottom, opening.z]}
+          >
+            <boxGeometry
+              args={[
+                railWidth,
+                opening.barHeight,
+                opening.depth,
+              ]}
+            />
 
-        <GoldMaterial />
-      </mesh>
+            <GoldMaterial />
+          </mesh>
+        </>
+      )}
 
       {geometry && (
         <mesh
