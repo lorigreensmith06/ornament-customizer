@@ -25,9 +25,12 @@ async function readResponse(response: Response) {
   return data
 }
 
-export default function DownloadPanel({ name, selectedModel }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize }: {
   name: string
   selectedModel: string
+  showName: boolean
+  selectedFont: string
+  textSize: number
 }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -44,7 +47,7 @@ export default function DownloadPanel({ name, selectedModel }: {
     setError('')
     setDownloadUrl('')
     return () => { active.current?.abort() }
-  }, [name, selectedModel])
+  }, [name, selectedModel, showName, selectedFont, textSize])
 
   async function generate() {
     if (active.current) return
@@ -61,7 +64,13 @@ export default function DownloadPanel({ name, selectedModel }: {
       const created = await readResponse(await fetch(`${API}/api/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), design }),
+        body: JSON.stringify({
+          name: showName ? name.trim() : '',
+          snowflake_design: design,
+          show_text: showName,
+          font_style: selectedFont,
+          font_size: textSize,
+        }),
         signal,
       })) as { id: string }
 
@@ -74,7 +83,7 @@ export default function DownloadPanel({ name, selectedModel }: {
         if (job.status === 'ready') {
           if (!job.download_url) throw new Error('Missing download URL.')
           setDownloadUrl(`${API}${job.download_url}`)
-          setMessage(`Ready: ${name.trim()}`)
+          setMessage(showName ? `Ready: ${name.trim()}` : 'Ready')
           return
         }
         setMessage(job.status === 'queued' ? 'Waiting for Houdini…' : 'Generating STL…')
@@ -96,7 +105,7 @@ export default function DownloadPanel({ name, selectedModel }: {
   return (
     <div style={{ marginTop: '1rem' }}>
       <button type="button" onClick={generate}
-        disabled={busy || !/[A-Z0-9]/.test(name)}>
+        disabled={busy || (showName && !/[A-Z0-9]/.test(name))}>
         {busy ? 'Generating…' : 'Generate STL'}
       </button>
       <p role="status">{message}</p>
@@ -104,9 +113,6 @@ export default function DownloadPanel({ name, selectedModel }: {
         {error}
       </pre>}
       {downloadUrl && <a href={downloadUrl}>Download STL</a>}
-      <small style={{ display: 'block', marginTop: '0.5rem' }}>
-        Test export: Lato Bold, size 1. The current browser preview uses a different font.
-      </small>
     </div>
   )
 }

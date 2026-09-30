@@ -7,7 +7,6 @@ import type { BufferGeometry } from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
-import fontUrl from './helvetiker_bold.typeface.json?url'
 import './App.css'
 import DownloadPanel from './DownloadPanel'
 
@@ -44,6 +43,14 @@ const fonts = [
     value: 'montserrat',
   },
 ]
+
+// Font URL mapping for Three.js preview
+const fontUrls: Record<string, string> = {
+  lato: '/fonts/Lato_Bold.json',
+  arial: '/fonts/Arial_Bold.json',
+  cambria: '/fonts/Cambria_Bold.json',
+  montserrat: '/fonts/Montserrat Subrayada_Bold.json',
+}
 
 // All dimensions below use the STL's original coordinates, before display scale.
 // These exports face +Z and have a horizontal opening crossing Y = 0.
@@ -157,14 +164,15 @@ function NameAndRails({
   name,
   opening,
   textSize,
+  selectedFont,
 }: {
   name: string
   opening: Opening
   textSize: number
+  selectedFont: string
 }) {
-  // Temporary preview font.
-  // We'll replace this with the selected font in the next step.
-  const font = useLoader(FontLoader, fontUrl)
+  // Use the selected font for preview
+  const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
 
   const { geometry, railWidth } = useMemo(() => {
     const text = name.trim()
@@ -225,7 +233,7 @@ function NameAndRails({
       geometry: result,
       railWidth,
     }
-  }, [font, name, opening, textSize])
+  }, [font, name, opening, textSize, selectedFont])
 
   useEffect(() => {
     return () => {
@@ -273,11 +281,13 @@ function Ornament({
   name,
   showName,
   textSize,
+  selectedFont,
 }: {
   file: string
   name: string
   showName: boolean
   textSize: number
+  selectedFont: string
 }) {
   const source = useLoader(STLLoader, file)
 
@@ -317,6 +327,7 @@ function Ornament({
               name={name}
               opening={opening}
               textSize={textSize}
+              selectedFont={selectedFont}
             />
           </Suspense>
         )}
@@ -470,6 +481,9 @@ export default function App() {
         <DownloadPanel
           name={showName ? name : ''}
           selectedModel={selectedModel}
+          showName={showName}
+          selectedFont={selectedFont}
+          textSize={textSize}
         />
       </section>
 
@@ -506,6 +520,7 @@ export default function App() {
                 name={name}
                 showName={showName}
                 textSize={textSize}
+                selectedFont={selectedFont}
               />
             </Suspense>
 
