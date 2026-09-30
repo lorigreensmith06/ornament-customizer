@@ -59,7 +59,8 @@ const fontUrls: Record<string, string> = {
 }
 
 // All dimensions below use the STL's original coordinates, before display scale.
-// These exports face +Z and have a horizontal opening crossing Y = 0.
+// A model may already contain a horizontal opening crossing Y = 0
+// (measured), or be a complete snowflake (opening synthesized).
 function measureOpening(geometry: BufferGeometry) {
   geometry.computeBoundingBox()
 
@@ -80,10 +81,11 @@ function measureOpening(geometry: BufferGeometry) {
     }
   }
 
-  // Vertex gaps alone can occur inside triangles.
-  // Reject a solid crossing Y = 0.
+  // A triangle crossing Y = 0 means the snowflake is solid.
   const indices = geometry.index
   const count = indices ? indices.count : positions.count
+
+  let solid = false
 
   for (let i = 0; i < count; i += 3) {
     const ys = [0, 1, 2].map((offset) =>
@@ -93,47 +95,54 @@ function measureOpening(geometry: BufferGeometry) {
     )
 
     if (Math.min(...ys) < 0 && Math.max(...ys) > 0) {
-      throw new Error(
-        'This model needs a horizontal opening crossing Y = 0.',
-      )
+      solid = true
+      break
     }
   }
 
-  const gap = top - bottom
-
-  if (!Number.isFinite(gap) || gap <= 0) {
-    throw new Error(
-      'Could not find the name opening in this model.',
-    )
-  }
-
-  const tolerance = Math.max(gap * 0.0001, 0.00001)
-
-  let left = Infinity
-  let right = -Infinity
-
-  for (let i = 0; i < positions.count; i++) {
-    const y = positions.getY(i)
-
-    if (
-      Math.abs(y - top) < tolerance ||
-      Math.abs(y - bottom) < tolerance
-    ) {
-      left = Math.min(left, positions.getX(i))
-      right = Math.max(right, positions.getX(i))
-    }
-  }
-
-  if (!Number.isFinite(left) || right <= left) {
-    throw new Error(
-      'Could not measure the cut edges of this model.',
-    )
-  }
-
+  const height = bounds.max.y - bounds.min.y
   const depth = bounds.max.z - bounds.min.z
 
   if (depth <= 0) {
     throw new Error('The STL has no depth.')
+  }
+
+  let gap = top - bottom
+  let left = Infinity
+  let right = -Infinity
+  let y = 0
+
+  if (solid || !Number.isFinite(gap) || gap <= height * 0.001) {
+    // Complete snowflake: synthesize the opening at the centerline,
+    // matching the proportions of the previous opening.
+    gap = height * 0.1215
+    bottom = -gap / 2
+    top = gap / 2
+    const cut = (bounds.max.x - bounds.min.x) * 0.7363
+    left = center.x - cut / 2
+    right = center.x + cut / 2
+  } else {
+    const tolerance = Math.max(gap * 0.0001, 0.00001)
+
+    for (let i = 0; i < positions.count; i++) {
+      const py = positions.getY(i)
+
+      if (
+        Math.abs(py - top) < tolerance ||
+        Math.abs(py - bottom) < tolerance
+      ) {
+        left = Math.min(left, positions.getX(i))
+        right = Math.max(right, positions.getX(i))
+      }
+    }
+
+    if (!Number.isFinite(left) || right <= left) {
+      throw new Error(
+        'Could not measure the cut edges of this model.',
+      )
+    }
+
+    y = (top + bottom) / 2
   }
 
   const barHeight = gap * 0.18
@@ -148,7 +157,7 @@ function measureOpening(geometry: BufferGeometry) {
     textWidth: right - left - barHeight,
     textHeight: gap - barHeight + gap * 0.025,
     x: (left + right) / 2,
-    y: (top + bottom) / 2,
+    y,
     z: (bounds.min.z + bounds.max.z) / 2,
     depth,
   }
