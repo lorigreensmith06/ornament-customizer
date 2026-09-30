@@ -3,6 +3,12 @@ import type { ReactNode } from 'react'
 import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { Vector3 } from 'three'
+import {
+  AlwaysStencilFunc,
+  KeepStencilOp,
+  NotEqualStencilFunc,
+  ReplaceStencilOp,
+} from 'three'
 import type { BufferGeometry } from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
@@ -174,13 +180,17 @@ function NameAndRails({
   // Use the selected font for preview
   const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
 
-  const { geometry, railWidth } = useMemo(() => {
+  const { geometry, railWidth, railTop, railBottom, clippingWidth, clippingHeight } = useMemo(() => {
     const text = name.trim()
 
     if (!text) {
       return {
         geometry: null,
         railWidth: opening.width,
+        railTop: opening.top,
+        railBottom: opening.bottom,
+        clippingWidth: opening.width,
+        clippingHeight: 0,
       }
     }
 
@@ -202,6 +212,10 @@ function NameAndRails({
       return {
         geometry: null,
         railWidth: opening.width,
+        railTop: opening.top,
+        railBottom: opening.bottom,
+        clippingWidth: opening.width,
+        clippingHeight: 0,
       }
     }
 
@@ -212,13 +226,17 @@ function NameAndRails({
 
     result.scale(finalScale, finalScale, 1)
 
-    // Measure actual width after scaling.
+    // Measure actual dimensions after scaling.
     result.computeBoundingBox()
 
-    const textWidth =
-      result.boundingBox!.getSize(new Vector3()).x
+    const textSizeScaled = result.boundingBox!.getSize(new Vector3())
+    const textWidth = textSizeScaled.x
+    const textHeight = textSizeScaled.y
 
     const sidePadding = opening.barHeight
+    // Same clearance between text and rail centers as the original opening.
+    // At textSize = 1 this puts the rails exactly at opening.top/bottom.
+    const verticalPadding = (opening.gap - opening.textHeight) / 2
 
     // Keep rails at least as wide as the snowflake opening.
     // Longer names can make the rails wider.
@@ -227,11 +245,25 @@ function NameAndRails({
       textWidth + sidePadding * 2,
     )
 
+    // Position rails based on actual text height with padding
+    const railTop = opening.y + textHeight / 2 + verticalPadding
+    const railBottom = opening.y - textHeight / 2 - verticalPadding
+
+    // Clip the snowflake only where the text itself lives. The rail
+    // band keeps its snowflake so it intersects the rails for a
+    // watertight print.
+    const clippingWidth = railWidth
+    const clippingHeight = textHeight
+
     result.center()
 
     return {
       geometry: result,
       railWidth,
+      railTop,
+      railBottom,
+      clippingWidth,
+      clippingHeight,
     }
   }, [font, name, opening, textSize, selectedFont])
 
@@ -243,22 +275,61 @@ function NameAndRails({
 
   return (
     <group>
-      {[opening.top, opening.bottom].map((y) => (
+      {/* Writes the text footprint into the stencil buffer so the
+          snowflake material can skip those pixels. Renders first via
+          renderOrder and produces no color or depth output. */}
+      {geometry && (
         <mesh
-          key={y}
-          position={[opening.x, y, opening.z]}
+          position={[opening.x, opening.y, opening.z]}
+          renderOrder={-1}
         >
           <boxGeometry
             args={[
-              railWidth,
-              opening.barHeight,
+              clippingWidth,
+              clippingHeight,
               opening.depth,
             ]}
           />
-
-          <GoldMaterial />
+          <meshBasicMaterial
+            colorWrite={false}
+            depthWrite={false}
+            stencilWrite
+            stencilFunc={AlwaysStencilFunc}
+            stencilRef={1}
+            stencilFail={KeepStencilOp}
+            stencilZFail={KeepStencilOp}
+            stencilZPass={ReplaceStencilOp}
+          />
         </mesh>
-      ))}
+      )}
+
+      <mesh
+        position={[opening.x, railTop, opening.z]}
+      >
+        <boxGeometry
+          args={[
+            railWidth,
+            opening.barHeight,
+            opening.depth,
+          ]}
+        />
+
+        <GoldMaterial />
+      </mesh>
+
+      <mesh
+        position={[opening.x, railBottom, opening.z]}
+      >
+        <boxGeometry
+          args={[
+            railWidth,
+            opening.barHeight,
+            opening.depth,
+          ]}
+        />
+
+        <GoldMaterial />
+      </mesh>
 
       {geometry && (
         <mesh
@@ -317,8 +388,18 @@ function Ornament({
           -opening.center.z,
         ]}
       >
-        <mesh geometry={geometry}>
-          <GoldMaterial />
+        {/* Stencil test hides the snowflake inside the name/rail
+            footprint written by the mask mesh in NameAndRails. */}
+        <mesh geometry={geometry} renderOrder={1}>
+          <meshStandardMaterial
+            color="#c6a15b"
+            metalness={0.7}
+            roughness={0.3}
+            stencilWrite
+            stencilFunc={NotEqualStencilFunc}
+            stencilRef={1}
+            stencilFuncMask={0xff}
+          />
         </mesh>
 
         {showName && (
@@ -496,6 +577,7 @@ export default function App() {
               position: [0, 0, 9],
               fov: 40,
             }}
+            gl={{ stencil: true }}
           >
             <color
               attach="background"
