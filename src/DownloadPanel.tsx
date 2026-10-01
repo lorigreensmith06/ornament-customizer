@@ -25,28 +25,28 @@ async function readResponse(response: Response) {
   return data
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, onReady }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, onReady }: {
   name: string
   selectedModel: string
   showName: boolean
   selectedFont: string
   textSize: number
+  downloadUrl?: string | null
   onReady?: (url: string) => void
 }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [downloadUrl, setDownloadUrl] = useState('')
   const active = useRef<AbortController | null>(null)
 
-  // A changed name/design invalidates the previous download in this panel.
+  // Parameter changes abort in-flight polling; the last successful
+  // download URL is owned by App and intentionally survives this.
   useEffect(() => {
     active.current?.abort()
     active.current = null
     setBusy(false)
     setMessage('')
     setError('')
-    setDownloadUrl('')
     return () => { active.current?.abort() }
   }, [name, selectedModel, showName, selectedFont, textSize])
 
@@ -57,7 +57,6 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     const { signal } = controller
     setBusy(true)
     setError('')
-    setDownloadUrl('')
     setMessage('Submitting…')
     try {
       const design = DESIGN_IDS[selectedModel]
@@ -84,7 +83,6 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         if (job.status === 'ready') {
           if (!job.download_url) throw new Error('Missing download URL.')
           const url = `${API}${job.download_url}`
-          setDownloadUrl(url)
           onReady?.(url)
           setMessage(showName ? `Ready: ${name.trim()}` : 'Ready')
           return
@@ -111,11 +109,13 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         disabled={busy || (showName && !/[A-Z0-9]/.test(name))}>
         {busy ? 'Generating…' : 'Generate STL'}
       </button>
+      {downloadUrl && (
+        <a className="download-link" href={downloadUrl}>Download STL</a>
+      )}
       <p role="status">{message}</p>
       {error && <pre role="alert" style={{ whiteSpace: 'pre-wrap', color: '#a02424' }}>
         {error}
       </pre>}
-      {downloadUrl && <a href={downloadUrl}>Download STL</a>}
     </div>
   )
 }

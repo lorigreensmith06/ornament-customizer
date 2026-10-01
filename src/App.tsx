@@ -55,6 +55,9 @@ const fonts = [
 // Millimeters of cap height per unit of Name Size in the Houdini HDA.
 // Anchored on a generated STL: "LORI" measured 8.21mm at size 1.
 const MM_PER_SIZE = 8.00
+// Rail thickness as a fraction of the rendered text height,
+// matching the HDA's transform6/transform7 sy = 0.2 on the text bbox.
+const RAIL_HEIGHT_FRACTION = 0.2
 const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   arial: '/fonts/Arial_Bold.json',
@@ -196,7 +199,7 @@ function NameAndRails({
   // Use the selected font for preview
   const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
 
-  const { geometry, railWidth, railTop, railBottom, clippingWidth, clippingHeight } = useMemo(() => {
+  const { geometry, railWidth, railTop, railBottom, clippingWidth, clippingHeight, barHeight } = useMemo(() => {
     const text = name.trim()
 
     // Houdini's rule: rails are at least 75% of the snowflake width.
@@ -210,6 +213,7 @@ function NameAndRails({
         railBottom: opening.bottom,
         clippingWidth: opening.width,
         clippingHeight: 0,
+        barHeight: opening.barHeight,
       }
     }
 
@@ -235,6 +239,7 @@ function NameAndRails({
         railBottom: opening.bottom,
         clippingWidth: opening.width,
         clippingHeight: 0,
+        barHeight: opening.barHeight,
       }
     }
 
@@ -250,6 +255,9 @@ function NameAndRails({
     const textSizeScaled = result.boundingBox!.getSize(new Vector3())
     const textWidth = textSizeScaled.x
     const textHeight = textSizeScaled.y
+
+    // HDA rule: rail thickness = 0.2 x rendered text bbox height.
+    const barHeight = textHeight * RAIL_HEIGHT_FRACTION
 
     // Same clearance between text and rail centers as the original opening.
     // At textSize = 1 this puts the rails exactly at opening.top/bottom.
@@ -276,6 +284,7 @@ function NameAndRails({
       railBottom,
       clippingWidth,
       clippingHeight,
+      barHeight,
     }
   }, [font, name, opening, textSize, selectedFont])
 
@@ -328,7 +337,7 @@ function NameAndRails({
             <boxGeometry
               args={[
                 railWidth,
-                opening.barHeight,
+                barHeight,
                 opening.depth,
               ]}
             />
@@ -342,7 +351,7 @@ function NameAndRails({
             <boxGeometry
               args={[
                 railWidth,
-                opening.barHeight,
+                barHeight,
                 opening.depth,
               ]}
             />
@@ -587,6 +596,9 @@ export default function App() {
   const [generatedGeom, setGeneratedGeom] =
     useState<BufferGeometry | null>(null)
 
+  const [downloadUrl, setDownloadUrl] =
+    useState<string | null>(null)
+
   const [generatedKey, setGeneratedKey] =
     useState<string | null>(null)
 
@@ -600,6 +612,7 @@ export default function App() {
   const handleGenerated = useCallback((url: string) => {
     const key = paramsKey
     const id = ++generatedLoad.current
+    setDownloadUrl(url)
     new STLLoader().load(
       url,
       (g) => {
@@ -727,6 +740,7 @@ export default function App() {
           showName={showName}
           selectedFont={selectedFont}
           textSize={textSize}
+          downloadUrl={downloadUrl}
           onReady={handleGenerated}
         />
 
