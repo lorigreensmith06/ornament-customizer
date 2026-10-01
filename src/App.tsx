@@ -1,4 +1,4 @@
-import { Component, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
@@ -52,6 +52,9 @@ const fonts = [
 ]
 
 // Font URL mapping for Three.js preview
+// Millimeters of cap height per unit of Name Size in the Houdini HDA.
+// Anchored on a generated STL: "LORI" measured 8.21mm at size 1.
+const MM_PER_SIZE = 8.00
 const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   arial: '/fonts/Arial_Bold.json',
@@ -146,7 +149,7 @@ function measureOpening(geometry: BufferGeometry) {
     y = (top + bottom) / 2
   }
 
-  const barHeight = gap * 0.18
+  const barHeight = gap * 0.123
 
   return {
     center,
@@ -154,6 +157,7 @@ function measureOpening(geometry: BufferGeometry) {
     bottom,
     gap,
     barHeight,
+    ornamentWidth: bounds.max.x - bounds.min.x,
     width: right - left + barHeight,
     textWidth: right - left - barHeight,
     textHeight: gap - barHeight + gap * 0.025,
@@ -195,10 +199,13 @@ function NameAndRails({
   const { geometry, railWidth, railTop, railBottom, clippingWidth, clippingHeight } = useMemo(() => {
     const text = name.trim()
 
+    // Houdini's rule: rails are at least 75% of the snowflake width.
+    const minimumRailWidth = opening.ornamentWidth * 0.75
+
     if (!text) {
       return {
         geometry: null,
-        railWidth: opening.width,
+        railWidth: minimumRailWidth,
         railTop: opening.top,
         railBottom: opening.bottom,
         clippingWidth: opening.width,
@@ -223,7 +230,7 @@ function NameAndRails({
 
       return {
         geometry: null,
-        railWidth: opening.width,
+        railWidth: minimumRailWidth,
         railTop: opening.top,
         railBottom: opening.bottom,
         clippingWidth: opening.width,
@@ -231,10 +238,9 @@ function NameAndRails({
       }
     }
 
-    // Base scale fits the lettering vertically inside the opening.
-    // textSize lets the user scale it from 0.75x to 2x.
-    const baseScale = opening.textHeight / size.y
-    const finalScale = baseScale * textSize
+    // Absolute scale in millimeters matching the HDA's font_size,
+    // so each font keeps its natural cap-height/em ratio.
+    const finalScale = textSize * MM_PER_SIZE
 
     result.scale(finalScale, finalScale, 1)
 
@@ -245,17 +251,11 @@ function NameAndRails({
     const textWidth = textSizeScaled.x
     const textHeight = textSizeScaled.y
 
-    const sidePadding = opening.barHeight
     // Same clearance between text and rail centers as the original opening.
     // At textSize = 1 this puts the rails exactly at opening.top/bottom.
     const verticalPadding = (opening.gap - opening.textHeight) / 2
 
-    // Keep rails at least as wide as the snowflake opening.
-    // Longer names can make the rails wider.
-    const railWidth = Math.max(
-      opening.width,
-      textWidth + sidePadding * 2,
-    )
+    const railWidth = Math.max(minimumRailWidth, textWidth)
 
     // Position rails based on actual text height with padding
     const railTop = opening.y + textHeight / 2 + verticalPadding
@@ -490,6 +490,44 @@ function Ornament({
   )
 }
 
+function GeneratedOrnament({
+  geometry,
+  onSize,
+}: {
+  geometry: BufferGeometry
+  onSize?: (size: { x: number; y: number; z: number }) => void
+}) {
+  const { processed, center } = useMemo(() => {
+    const g = toCreasedNormals(geometry, Math.PI / 3)
+    g.computeBoundingBox()
+    return { processed: g, center: g.boundingBox!.getCenter(new Vector3()) }
+  }, [geometry])
+
+  useEffect(() => {
+    return () => processed.dispose()
+  }, [processed])
+
+  // The generated STL is exact geometry, so this reports real dimensions.
+  useEffect(() => {
+    const b = processed.boundingBox!
+    onSize?.({
+      x: b.max.x - b.min.x,
+      y: b.max.y - b.min.y,
+      z: b.max.z - b.min.z,
+    })
+  }, [processed, onSize])
+
+  return (
+    <group scale={0.05}>
+      <group position={[-center.x, -center.y, -center.z]}>
+        <mesh geometry={processed}>
+          <GoldMaterial />
+        </mesh>
+      </group>
+    </group>
+  )
+}
+
 class PreviewErrorBoundary extends Component<
   { children: ReactNode },
   { message: string | null }
@@ -541,6 +579,54 @@ export default function App() {
 
   const [ornSize, setOrnSize] =
     useState<{ x: number; y: number; z: number } | null>(null)
+
+  const paramsKey = JSON.stringify({
+    name, selectedModel, showName, selectedFont, textSize,
+  })
+
+  const [generatedGeom, setGeneratedGeom] =
+    useState<BufferGeometry | null>(null)
+
+  const [generatedKey, setGeneratedKey] =
+    useState<string | null>(null)
+
+  const [viewGenerated, setViewGenerated] =
+    useState(false)
+
+  const generatedLoad = useRef(0)
+
+  // Load the generated STL outside the Canvas so a load failure
+  // leaves the live preview and the download link untouched.
+  const handleGenerated = useCallback((url: string) => {
+    const key = paramsKey
+    const id = ++generatedLoad.current
+    new STLLoader().load(
+      url,
+      (g) => {
+        if (generatedLoad.current === id) {
+          setGeneratedGeom(g)
+          setGeneratedKey(key)
+          setViewGenerated(true)
+        }
+      },
+      undefined,
+      () => {},
+    )
+  }, [paramsKey])
+
+  // Any parameter change returns the viewport to the live preview.
+  // The last generated STL stays cached for comparison.
+  useEffect(() => {
+    generatedLoad.current++
+    setViewGenerated(false)
+  }, [name, selectedModel, showName, selectedFont, textSize])
+
+  const showingGenerated = generatedGeom != null && viewGenerated
+  const changesPending = generatedGeom != null && generatedKey !== paramsKey
+
+  useEffect(() => {
+    return () => generatedGeom?.dispose()
+  }, [generatedGeom])
 
   return (
     <main className="app">
@@ -641,6 +727,7 @@ export default function App() {
           showName={showName}
           selectedFont={selectedFont}
           textSize={textSize}
+          onReady={handleGenerated}
         />
 
         {ornSize && (
@@ -652,6 +739,33 @@ export default function App() {
       </section>
 
       <section className="preview">
+        <div className="view-toggle" role="group" aria-label="Viewport mode">
+          <button
+            type="button"
+            className={showingGenerated ? '' : 'active'}
+            onClick={() => setViewGenerated(false)}
+          >
+            Live Preview
+          </button>
+          <button
+            type="button"
+            className={showingGenerated ? 'active' : ''}
+            disabled={!generatedGeom}
+            title={generatedGeom ? undefined : 'Generate an STL first'}
+            onClick={() => setViewGenerated(true)}
+          >
+            Generated STL
+          </button>
+        </div>
+
+        <p className="view-note">
+          {showingGenerated
+            ? 'Last generated STL — this is the geometry that will be downloaded.'
+            : changesPending
+              ? 'Changes not generated yet.'
+              : 'Updates as you customize.'}
+        </p>
+
         <PreviewErrorBoundary
           key={selectedModel}
         >
@@ -680,14 +794,21 @@ export default function App() {
             />
 
             <Suspense fallback={null}>
-              <Ornament
-                file={selectedModel}
-                name={name}
-                showName={showName}
-                textSize={textSize}
-                selectedFont={selectedFont}
-                onSize={setOrnSize}
-              />
+              {showingGenerated ? (
+                <GeneratedOrnament
+                  geometry={generatedGeom}
+                  onSize={setOrnSize}
+                />
+              ) : (
+                <Ornament
+                  file={selectedModel}
+                  name={name}
+                  showName={showName}
+                  textSize={textSize}
+                  selectedFont={selectedFont}
+                  onSize={setOrnSize}
+                />
+              )}
             </Suspense>
 
             <OrbitControls

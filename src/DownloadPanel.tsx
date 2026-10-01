@@ -25,12 +25,13 @@ async function readResponse(response: Response) {
   return data
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, onReady }: {
   name: string
   selectedModel: string
   showName: boolean
   selectedFont: string
   textSize: number
+  onReady?: (url: string) => void
 }) {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -82,7 +83,9 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         if (job.status === 'failed') throw new Error(job.error || 'Generation failed.')
         if (job.status === 'ready') {
           if (!job.download_url) throw new Error('Missing download URL.')
-          setDownloadUrl(`${API}${job.download_url}`)
+          const url = `${API}${job.download_url}`
+          setDownloadUrl(url)
+          onReady?.(url)
           setMessage(showName ? `Ready: ${name.trim()}` : 'Ready')
           return
         }

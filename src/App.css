@@ -192,8 +192,64 @@ body {
 /* PREVIEW */
 
 .preview {
+  position: relative;
   grid-area: preview;
   min-height: 100vh;
+}
+
+/* Viewport mode selector */
+
+.view-toggle {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 1px 6px rgb(0 0 0 / 12%);
+}
+
+.view-toggle button {
+  padding: 0.45rem 1.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #8a6d33;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.view-toggle button.active {
+  background: #c6a15b;
+  color: white;
+}
+
+.view-toggle button:disabled {
+  color: #bbb;
+  cursor: not-allowed;
+}
+
+.view-note {
+  position: absolute;
+  top: 3.7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  margin: 0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 80%);
+  color: #666;
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 /* MOBILE */
