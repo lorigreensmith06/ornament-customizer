@@ -14,6 +14,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import './App.css'
 import DownloadPanel from './DownloadPanel'
 
@@ -44,10 +45,6 @@ const fonts = [
   {
     label: 'Cambria Bold',
     value: 'cambria',
-  },
-  {
-    label: 'Montserrat Subrayada Bold',
-    value: 'montserrat',
   },
 ]
 
@@ -606,6 +603,7 @@ export default function App() {
     useState(false)
 
   const generatedLoad = useRef(0)
+  const controlsRef = useRef<OrbitControlsImpl | null>(null)
 
   // Load the generated STL outside the Canvas so a load failure
   // leaves the live preview and the download link untouched.
@@ -620,6 +618,7 @@ export default function App() {
           setGeneratedGeom(g)
           setGeneratedKey(key)
           setViewGenerated(true)
+          controlsRef.current?.reset()
         }
       },
       undefined,
@@ -834,6 +833,7 @@ export default function App() {
             </Suspense>
 
             <OrbitControls
+              ref={controlsRef}
               enablePan={false}
             />
           </Canvas>
