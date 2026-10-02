@@ -696,6 +696,12 @@ export default function App() {
                 24 characters max · letters, numbers, spaces, hyphens and apostrophes.
               </small>
 
+              {name !== '' && !/[A-Z0-9]/.test(name) && (
+                <small className="field-error" role="alert">
+                  Please enter at least one letter or number.
+                </small>
+              )}
+
               <label htmlFor="font">Font</label>
               <select
                 id="font"
@@ -779,6 +785,8 @@ export default function App() {
               ? 'Changes not generated yet.'
               : 'Updates as you customize.'}
         </p>
+
+        <p className="viewport-hint">Drag to rotate • Scroll to zoom</p>
 
         <PreviewErrorBoundary
           key={selectedModel}
