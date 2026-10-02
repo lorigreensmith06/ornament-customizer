@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 const API = import.meta.env.DEV
   ? (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
@@ -37,16 +38,20 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
   const active = useRef<AbortController | null>(null)
+  const successTimer = useRef<number | null>(null)
 
   // Parameter changes abort in-flight polling; the last successful
   // download URL is owned by App and intentionally survives this.
   useEffect(() => {
     active.current?.abort()
     active.current = null
+    window.clearTimeout(successTimer.current ?? undefined)
     setBusy(false)
     setMessage('')
     setError('')
+    setSuccess(false)
     return () => { active.current?.abort() }
   }, [name, selectedModel, showName, selectedFont, textSize])
 
@@ -57,6 +62,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     const { signal } = controller
     setBusy(true)
     setError('')
+    setSuccess(false)
     setMessage('Submitting…')
     try {
       const design = DESIGN_IDS[selectedModel]
@@ -85,6 +91,9 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
           const url = `${API}${job.download_url}`
           onReady?.(url)
           setMessage(showName ? `Ready: ${name.trim()}` : 'Ready')
+          setSuccess(true)
+          window.clearTimeout(successTimer.current ?? undefined)
+          successTimer.current = window.setTimeout(() => setSuccess(false), 5000)
           return
         }
         setMessage(job.status === 'queued' ? 'Waiting for Houdini…' : 'Generating STL…')
@@ -111,6 +120,12 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
       </button>
       {downloadUrl && (
         <a className="download-link" href={downloadUrl}>Download STL</a>
+      )}
+      {success && createPortal(
+        <p className="success-banner" role="status">
+          ✓ STL generated successfully — ready to download.
+        </p>,
+        document.querySelector('.preview') ?? document.body,
       )}
       <p role="status">{message}</p>
       {error && <pre role="alert" style={{ whiteSpace: 'pre-wrap', color: '#a02424' }}>
