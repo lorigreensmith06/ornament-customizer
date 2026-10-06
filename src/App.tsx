@@ -16,7 +16,7 @@ import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import './App.css'
-import DownloadPanel from './DownloadPanel'
+import DownloadPanel, { API } from './DownloadPanel'
 
 const designs = [
   {
@@ -605,6 +605,11 @@ export default function App() {
   const generatedLoad = useRef(0)
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
 
+  // Download stays locked until Stripe confirms payment for this artifact.
+  const [paidUrl, setPaidUrl] =
+    useState<string | null>(null)
+  const checkoutHandled = useRef(false)
+
   // Load the generated STL outside the Canvas so a load failure
   // leaves the live preview and the download link untouched.
   const handleGenerated = useCallback((url: string) => {
@@ -632,6 +637,48 @@ export default function App() {
     generatedLoad.current++
     setViewGenerated(false)
   }, [name, selectedModel, showName, selectedFont, textSize])
+
+  // Returning from Stripe Checkout is a fresh page load: verify the
+  // session server-side, then restore the purchased artifact from the
+  // stash written in buy().
+  useEffect(() => {
+    if (checkoutHandled.current) return
+    checkoutHandled.current = true
+    const params = new URLSearchParams(window.location.search)
+    const payment = params.get('payment')
+    const sessionId = params.get('session_id')
+    if (!payment) return
+    window.history.replaceState({}, '', window.location.pathname)
+    if (payment !== 'success' || !sessionId) return
+    const stash = sessionStorage.getItem('pendingPurchase')
+    if (!stash) return
+    fetch(`${API}/api/checkout/status?session_id=${encodeURIComponent(sessionId)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(({ paid }: { paid: boolean }) => {
+        if (!paid) return
+        const s = JSON.parse(stash)
+        setName(s.name)
+        setSelectedModel(s.selectedModel)
+        setShowName(s.showName)
+        setSelectedFont(s.selectedFont)
+        setTextSize(s.textSize)
+        setDownloadUrl(s.url)
+        setPaidUrl(s.url)
+        sessionStorage.removeItem('pendingPurchase')
+        new STLLoader().load(
+          s.url,
+          (g) => {
+            setGeneratedGeom(g)
+            setGeneratedKey(s.key)
+            setViewGenerated(true)
+            controlsRef.current?.reset()
+          },
+          undefined,
+          () => {},
+        )
+      })
+      .catch(() => {})
+  }, [])
 
   const showingGenerated = generatedGeom != null && viewGenerated
   const changesPending = generatedGeom != null && generatedKey !== paramsKey
@@ -740,12 +787,14 @@ export default function App() {
         </div>
 
         <DownloadPanel
-          name={showName ? name : ''}
+          name={name}
           selectedModel={selectedModel}
           showName={showName}
           selectedFont={selectedFont}
           textSize={textSize}
           downloadUrl={downloadUrl}
+          paid={downloadUrl != null && downloadUrl === paidUrl}
+          paramsKey={paramsKey}
           onReady={handleGenerated}
         />
 

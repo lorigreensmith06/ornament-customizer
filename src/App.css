@@ -218,6 +218,37 @@ body {
   background: #f5ecdc;
 }
 
+.controls .buy-button {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 4px;
+  font-weight: 700;
+  text-align: center;
+  background: #c6a15b;
+  color: #fff;
+  cursor: pointer;
+}
+
+.controls .buy-button:hover:not(:disabled) {
+  background: #b08d4c;
+}
+
+.controls .buy-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.controls .purchase-note {
+  display: block;
+  margin-top: 0.5rem;
+  color: #376a30;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .success-banner {
   position: absolute;
   top: 6.5rem;

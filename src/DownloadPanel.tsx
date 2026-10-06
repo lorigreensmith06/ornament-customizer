@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-const API = import.meta.env.DEV
+export const API = import.meta.env.DEV
   ? (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
   : 'https://api.ornaments.smithharbor.com'
 const DESIGN_IDS: Record<string, string> = {
@@ -26,16 +26,19 @@ async function readResponse(response: Response) {
   return data
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, onReady }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, paid, paramsKey, onReady }: {
   name: string
   selectedModel: string
   showName: boolean
   selectedFont: string
   textSize: number
   downloadUrl?: string | null
+  paid?: boolean
+  paramsKey?: string
   onReady?: (url: string) => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [buying, setBuying] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -112,14 +115,45 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     }
   }
 
+  async function buy() {
+    setBuying(true)
+    setError('')
+    try {
+      const { url } = await readResponse(await fetch(`${API}/api/checkout`, {
+        method: 'POST',
+      })) as { url: string }
+      // Stripe Checkout is a full-page redirect; React state does not
+      // survive it, so stash the artifact for the return trip.
+      sessionStorage.setItem('pendingPurchase', JSON.stringify({
+        name, selectedModel, showName, selectedFont, textSize,
+        url: downloadUrl, key: paramsKey,
+      }))
+      window.location.href = url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setBuying(false)
+    }
+  }
+
   return (
     <div style={{ marginTop: '1rem' }}>
       <button type="button" onClick={generate}
         disabled={busy || (showName && !/[A-Z0-9]/.test(name))}>
         {busy ? 'Generating…' : 'Generate STL'}
       </button>
-      {downloadUrl && (
-        <a className="download-link" href={downloadUrl}>Download STL</a>
+      {downloadUrl && !paid && (
+        <button type="button" className="buy-button" onClick={buy}
+          disabled={busy || buying}>
+          {buying ? 'Redirecting…' : 'Buy STL – $3'}
+        </button>
+      )}
+      {downloadUrl && paid && (
+        <>
+          <a className="download-link" href={downloadUrl}>Download STL</a>
+          <small className="purchase-note">
+            ✓ Payment successful — your STL is ready to download.
+          </small>
+        </>
       )}
       {success && createPortal(
         <p className="success-banner" role="status">
