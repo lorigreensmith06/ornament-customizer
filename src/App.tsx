@@ -610,6 +610,8 @@ export default function App() {
     useState<string | null>(null)
   const [paidSessionId, setPaidSessionId] =
     useState<string | null>(null)
+  const [printedOrdered, setPrintedOrdered] =
+    useState(false)
   const checkoutHandled = useRef(false)
 
   // Load the generated STL outside the Canvas so a load failure
@@ -656,17 +658,24 @@ export default function App() {
     if (!stash) return
     fetch(`${API}/api/checkout/status?session_id=${encodeURIComponent(sessionId)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(({ paid, job_id }: { paid: boolean; job_id?: string }) => {
-        if (!paid || job_id !== JSON.parse(stash).job) return
+      .then(({ paid, job_id, product }:
+        { paid: boolean; job_id?: string; product?: string }) => {
         const s = JSON.parse(stash)
+        if (!paid || job_id !== s.job || product !== s.product) return
         setName(s.name)
         setSelectedModel(s.selectedModel)
         setShowName(s.showName)
         setSelectedFont(s.selectedFont)
         setTextSize(s.textSize)
         setDownloadUrl(s.url)
-        setPaidUrl(s.url)
-        setPaidSessionId(sessionId)
+        // Only an 'stl' purchase unlocks the download. A paid 'printed'
+        // order confirms separately and leaves the STL gated.
+        if (product === 'stl') {
+          setPaidUrl(s.url)
+          setPaidSessionId(sessionId)
+        } else {
+          setPrintedOrdered(true)
+        }
         sessionStorage.removeItem('pendingPurchase')
         new STLLoader().load(
           s.preview,
@@ -685,6 +694,10 @@ export default function App() {
 
   const showingGenerated = generatedGeom != null && viewGenerated
   const changesPending = generatedGeom != null && generatedKey !== paramsKey
+  // downloadUrl stays cached across param changes; the artifact only
+  // matches the current customization when generatedKey === paramsKey.
+  const stlValid = downloadUrl != null && generatedGeom != null
+    && generatedKey === paramsKey
 
   useEffect(() => {
     return () => generatedGeom?.dispose()
@@ -796,9 +809,11 @@ export default function App() {
           selectedFont={selectedFont}
           textSize={textSize}
           downloadUrl={downloadUrl}
+          stlValid={stlValid}
           paid={downloadUrl != null && downloadUrl === paidUrl}
           paidSessionId={paidSessionId}
           paramsKey={paramsKey}
+          printedOrdered={printedOrdered}
           onReady={handleGenerated}
         />
 

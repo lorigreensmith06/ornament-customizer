@@ -27,20 +27,23 @@ async function readResponse(response: Response) {
   return data
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, paid, paidSessionId, paramsKey, onReady }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, onReady }: {
   name: string
   selectedModel: string
   showName: boolean
   selectedFont: string
   textSize: number
   downloadUrl?: string | null
+  stlValid?: boolean
   paid?: boolean
+  printedOrdered?: boolean
   paidSessionId?: string | null
   paramsKey?: string
   onReady?: (downloadUrl: string, previewUrl: string) => void
 }) {
   const [busy, setBusy] = useState(false)
   const [buying, setBuying] = useState(false)
+  const [purchaseKind, setPurchaseKind] = useState<'stl' | 'printed'>('stl')
   const [generatedJobId, setGeneratedJobId] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [message, setMessage] = useState('')
@@ -123,21 +126,21 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     }
   }
 
-  async function buy() {
+  async function buy(product: 'stl' | 'printed') {
     setBuying(true)
     setError('')
     try {
       const { url } = await readResponse(await fetch(`${API}/api/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: generatedJobId }),
+        body: JSON.stringify({ job_id: generatedJobId, product }),
       })) as { url: string }
       // Stripe Checkout is a full-page redirect; React state does not
       // survive it, so stash the artifact for the return trip.
       sessionStorage.setItem('pendingPurchase', JSON.stringify({
         name, selectedModel, showName, selectedFont, textSize,
         url: downloadUrl, preview: previewUrl, job: generatedJobId,
-        key: paramsKey,
+        key: paramsKey, product,
       }))
       window.location.href = url
     } catch (err) {
@@ -148,15 +151,53 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
 
   return (
     <div style={{ marginTop: '1rem' }}>
-      <button type="button" onClick={generate}
-        disabled={busy || (showName && !/[A-Z0-9]/.test(name))}>
-        {busy ? 'Generating…' : 'Generate STL'}
-      </button>
-      {downloadUrl && !paid && (
-        <button type="button" className="buy-button" onClick={buy}
-          disabled={busy || buying || !generatedJobId}>
-          {buying ? 'Redirecting…' : 'Buy STL – $3'}
+      {!stlValid && (
+        <button type="button" onClick={generate}
+          disabled={busy || (showName && !/[A-Z0-9]/.test(name))}>
+          {busy ? 'Generating…' : 'Generate STL'}
         </button>
+      )}
+      {stlValid && !paid && (
+        <>
+          <p className="ready-note">Your ornament is ready</p>
+          <div className="purchase-options" role="radiogroup"
+            aria-label="Purchase options">
+            <button type="button" role="radio"
+              aria-checked={purchaseKind === 'stl'}
+              className={`purchase-option${purchaseKind === 'stl' ? ' selected' : ''}`}
+              onClick={() => setPurchaseKind('stl')}>
+              <span className="purchase-option-title">Download STL — $3</span>
+              <span className="purchase-option-desc">
+                Download the personalized 3D-printable file.
+              </span>
+            </button>
+            <button type="button" role="radio"
+              aria-checked={purchaseKind === 'printed'}
+              className={`purchase-option${purchaseKind === 'printed' ? ' selected' : ''}`}
+              onClick={() => setPurchaseKind('printed')}>
+              <span className="purchase-option-title">Printed Ornament — $15</span>
+              <span className="purchase-option-desc">
+                Have your personalized ornament printed and shipped to you.
+              </span>
+            </button>
+          </div>
+          {purchaseKind === 'stl' ? (
+            <button type="button" className="buy-button" onClick={() => buy('stl')}
+              disabled={busy || buying || !generatedJobId}>
+              {buying ? 'Redirecting…' : 'Buy STL – $3'}
+            </button>
+          ) : (
+            <button type="button" className="buy-button" onClick={() => buy('printed')}
+              disabled={busy || buying || !generatedJobId}>
+              {buying ? 'Redirecting…' : 'Continue – $15'}
+            </button>
+          )}
+        </>
+      )}
+      {printedOrdered && (
+        <small className="purchase-note">
+          Order received! Your printed ornament order has been paid.
+        </small>
       )}
       {downloadUrl && paid && paidSessionId && (
         <>

@@ -218,6 +218,64 @@ body {
   background: #f5ecdc;
 }
 
+.controls .ready-note {
+  margin: 0.75rem 0 0;
+  color: #8a6d33;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.controls .purchase-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.controls .purchase-option {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #ddd0b8;
+  border-radius: 6px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.controls .purchase-option:hover {
+  border-color: #c6a15b;
+}
+
+.controls .purchase-option.selected {
+  border-color: #c6a15b;
+  background: #fdf9f0;
+  box-shadow: 0 0 0 1px #c6a15b;
+}
+
+.controls .purchase-option-title {
+  display: block;
+  font-weight: 700;
+  color: #8a6d33;
+  font-size: 0.88rem;
+}
+
+.controls .purchase-option-desc {
+  display: block;
+  margin-top: 0.15rem;
+  color: #777;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.controls .coming-soon-note {
+  display: block;
+  margin-top: 0.4rem;
+  color: #777;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .controls .buy-button {
   display: block;
   width: 100%;
