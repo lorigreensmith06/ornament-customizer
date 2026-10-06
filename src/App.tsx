@@ -608,16 +608,18 @@ export default function App() {
   // Download stays locked until Stripe confirms payment for this artifact.
   const [paidUrl, setPaidUrl] =
     useState<string | null>(null)
+  const [paidSessionId, setPaidSessionId] =
+    useState<string | null>(null)
   const checkoutHandled = useRef(false)
 
   // Load the generated STL outside the Canvas so a load failure
   // leaves the live preview and the download link untouched.
-  const handleGenerated = useCallback((url: string) => {
+  const handleGenerated = useCallback((url: string, preview: string) => {
     const key = paramsKey
     const id = ++generatedLoad.current
     setDownloadUrl(url)
     new STLLoader().load(
-      url,
+      preview,
       (g) => {
         if (generatedLoad.current === id) {
           setGeneratedGeom(g)
@@ -654,8 +656,8 @@ export default function App() {
     if (!stash) return
     fetch(`${API}/api/checkout/status?session_id=${encodeURIComponent(sessionId)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(({ paid }: { paid: boolean }) => {
-        if (!paid) return
+      .then(({ paid, job_id }: { paid: boolean; job_id?: string }) => {
+        if (!paid || job_id !== JSON.parse(stash).job) return
         const s = JSON.parse(stash)
         setName(s.name)
         setSelectedModel(s.selectedModel)
@@ -664,9 +666,10 @@ export default function App() {
         setTextSize(s.textSize)
         setDownloadUrl(s.url)
         setPaidUrl(s.url)
+        setPaidSessionId(sessionId)
         sessionStorage.removeItem('pendingPurchase')
         new STLLoader().load(
-          s.url,
+          s.preview,
           (g) => {
             setGeneratedGeom(g)
             setGeneratedKey(s.key)
@@ -794,6 +797,7 @@ export default function App() {
           textSize={textSize}
           downloadUrl={downloadUrl}
           paid={downloadUrl != null && downloadUrl === paidUrl}
+          paidSessionId={paidSessionId}
           paramsKey={paramsKey}
           onReady={handleGenerated}
         />

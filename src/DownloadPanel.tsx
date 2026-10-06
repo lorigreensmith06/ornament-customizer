@@ -14,6 +14,7 @@ type Job = {
   id: string
   status: 'queued' | 'running' | 'ready' | 'failed'
   download_url: string | null
+  preview_url: string | null
   error: string | null
 }
 
@@ -26,7 +27,7 @@ async function readResponse(response: Response) {
   return data
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, paid, paramsKey, onReady }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, paid, paidSessionId, paramsKey, onReady }: {
   name: string
   selectedModel: string
   showName: boolean
@@ -34,11 +35,14 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   textSize: number
   downloadUrl?: string | null
   paid?: boolean
+  paidSessionId?: string | null
   paramsKey?: string
-  onReady?: (url: string) => void
+  onReady?: (downloadUrl: string, previewUrl: string) => void
 }) {
   const [busy, setBusy] = useState(false)
   const [buying, setBuying] = useState(false)
+  const [generatedJobId, setGeneratedJobId] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -91,8 +95,12 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         if (job.status === 'failed') throw new Error(job.error || 'Generation failed.')
         if (job.status === 'ready') {
           if (!job.download_url) throw new Error('Missing download URL.')
+          if (!job.preview_url) throw new Error('Missing preview URL.')
           const url = `${API}${job.download_url}`
-          onReady?.(url)
+          const preview = `${API}${job.preview_url}`
+          setGeneratedJobId(job.id)
+          setPreviewUrl(preview)
+          onReady?.(url, preview)
           setMessage(showName ? `Ready: ${name.trim()}` : 'Ready')
           setSuccess(true)
           window.clearTimeout(successTimer.current ?? undefined)
@@ -121,12 +129,15 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     try {
       const { url } = await readResponse(await fetch(`${API}/api/checkout`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: generatedJobId }),
       })) as { url: string }
       // Stripe Checkout is a full-page redirect; React state does not
       // survive it, so stash the artifact for the return trip.
       sessionStorage.setItem('pendingPurchase', JSON.stringify({
         name, selectedModel, showName, selectedFont, textSize,
-        url: downloadUrl, key: paramsKey,
+        url: downloadUrl, preview: previewUrl, job: generatedJobId,
+        key: paramsKey,
       }))
       window.location.href = url
     } catch (err) {
@@ -143,13 +154,16 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
       </button>
       {downloadUrl && !paid && (
         <button type="button" className="buy-button" onClick={buy}
-          disabled={busy || buying}>
+          disabled={busy || buying || !generatedJobId}>
           {buying ? 'Redirecting…' : 'Buy STL – $3'}
         </button>
       )}
-      {downloadUrl && paid && (
+      {downloadUrl && paid && paidSessionId && (
         <>
-          <a className="download-link" href={downloadUrl}>Download STL</a>
+          <a className="download-link"
+            href={`${downloadUrl}?session_id=${encodeURIComponent(paidSessionId)}`}>
+            Download STL
+          </a>
           <small className="purchase-note">
             ✓ Payment successful — your STL is ready to download.
           </small>
