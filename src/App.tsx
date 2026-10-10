@@ -15,9 +15,13 @@ import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.j
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom'
 import './App.css'
 import DownloadPanel, { API } from './DownloadPanel'
 import CartPanel, { type CartItem } from './CartPanel'
+import Header from './components/Header'
+import ExplorePage from './pages/ExplorePage'
+import OrdersPage from './pages/OrdersPage'
 
 const designs = [
   {
@@ -569,6 +573,8 @@ class PreviewErrorBoundary extends Component<
 }
 
 export default function App() {
+  const [searchParams] = useSearchParams()
+  const requestedDesign = searchParams.get('design')
   const [selectedModel, setSelectedModel] =
     useState(designs[0].file)
 
@@ -584,6 +590,12 @@ export default function App() {
   const [textSize, setTextSize] =
     useState(1.0)
 
+  useEffect(() => {
+    if (requestedDesign
+        && designs.some((design) => design.file === requestedDesign)) {
+      setSelectedModel(requestedDesign)
+    }
+  }, [requestedDesign])
   const [ornSize, setOrnSize] =
     useState<{ x: number; y: number; z: number } | null>(null)
 
@@ -869,7 +881,11 @@ export default function App() {
 
   return (
     <main className="app">
-      <section className="controls">
+      <Header cartCount={cart.length} onCartOpen={() => setCartOpen(true)} />
+      <Routes>
+        <Route path="/" element={
+          <div className="app-main">
+            <section className="controls">
         <h1>Personalized Snowflake Ornament</h1>
 
         <div className="control-section">
@@ -1075,19 +1091,13 @@ export default function App() {
             />
           </Canvas>
         </PreviewErrorBoundary>
-      </section>
-
-      <button type="button" className="cart-fab" aria-label="Open cart"
-        onClick={() => setCartOpen(true)}>
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
-          stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-          strokeLinejoin="round">
-          <circle cx="9" cy="21" r="1" />
-          <circle cx="20" cy="21" r="1" />
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-        </svg>
-        {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
-      </button>
+          </section>
+          </div>
+        } />
+        <Route path="/explore" element={<ExplorePage />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       <CartPanel
         items={cart}
         open={cartOpen}
