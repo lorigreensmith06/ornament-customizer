@@ -27,7 +27,16 @@ async function readResponse(response: Response) {
   return data
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, onReady }: {
+type OrderItem = {
+  id: number
+  product: string
+  name: string
+  quantity: number
+  status: string
+  label: string
+}
+
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, order, hasOrderAccess, onDismissOrder, onShowOrder, onReady, onAddToCart }: {
   name: string
   selectedModel: string
   showName: boolean
@@ -37,9 +46,15 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   stlValid?: boolean
   paid?: boolean
   printedOrdered?: boolean
+  order?: { id: string; key: string; status: string;
+            items: OrderItem[] } | null
+  hasOrderAccess?: boolean
+  onDismissOrder?: () => void
+  onShowOrder?: () => void
   paidSessionId?: string | null
   paramsKey?: string
-  onReady?: (downloadUrl: string, previewUrl: string) => void
+  onReady?: (downloadUrl: string, previewUrl: string, jobId?: string) => void
+  onAddToCart?: (product: 'stl' | 'printed') => void
 }) {
   const [busy, setBusy] = useState(false)
   const [buying, setBuying] = useState(false)
@@ -103,7 +118,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
           const preview = `${API}${job.preview_url}`
           setGeneratedJobId(job.id)
           setPreviewUrl(preview)
-          onReady?.(url, preview)
+          onReady?.(url, preview, job.id)
           setMessage(showName ? `Ready: ${name.trim()}` : 'Ready')
           setSuccess(true)
           window.clearTimeout(successTimer.current ?? undefined)
@@ -123,6 +138,26 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         active.current = null
         setBusy(false)
       }
+    }
+  }
+
+  async function downloadOrderItem(item: OrderItem) {
+    if (!order) return
+    setError('')
+    try {
+      const res = await fetch(
+        `${API}/api/orders/${order.id}/download/${item.id}`,
+        { headers: { 'X-Order-Key': order.key } })
+      if (!res.ok) throw new Error(`Download failed (${res.status})`)
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download =
+        `${(item.name || 'snowflake').replace(/ /g, '_')}_ornament.stl`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -182,15 +217,31 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
             </button>
           </div>
           {purchaseKind === 'stl' ? (
-            <button type="button" className="buy-button" onClick={() => buy('stl')}
-              disabled={busy || buying || !generatedJobId}>
-              {buying ? 'Redirecting…' : 'Buy STL – $3'}
-            </button>
+            <>
+              <button type="button" className="buy-button"
+                onClick={() => buy('stl')}
+                disabled={busy || buying || !generatedJobId}>
+                {buying ? 'Redirecting…' : 'Buy Now – $3'}
+              </button>
+              <button type="button" className="cart-button"
+                onClick={() => onAddToCart?.('stl')}
+                disabled={busy || buying || !generatedJobId}>
+                Add to Cart
+              </button>
+            </>
           ) : (
-            <button type="button" className="buy-button" onClick={() => buy('printed')}
-              disabled={busy || buying || !generatedJobId}>
-              {buying ? 'Redirecting…' : 'Continue – $15'}
-            </button>
+            <>
+              <button type="button" className="buy-button"
+                onClick={() => buy('printed')}
+                disabled={busy || buying || !generatedJobId}>
+                {buying ? 'Redirecting…' : 'Buy Now – $15'}
+              </button>
+              <button type="button" className="cart-button"
+                onClick={() => onAddToCart?.('printed')}
+                disabled={busy || buying || !generatedJobId}>
+                Add to Cart
+              </button>
+            </>
           )}
         </>
       )}
@@ -198,6 +249,45 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         <small className="purchase-note">
           Order received! Your printed ornament order has been paid.
         </small>
+      )}
+      {order && (
+        <div className="order-confirm">
+          <p className="order-confirm-title">Order Confirmed!</p>
+          <div className="order-confirm-items">
+            {order.items.map((item) => (
+              <div className="order-confirm-item" key={item.id}>
+                <span className="order-confirm-name">
+                  {item.name ? `"${item.name}"` : 'Snowflake'}
+                </span>
+                <span className="order-item-type">
+                  {item.product === 'stl' ? 'Digital STL'
+                    : 'Printed Ornament'}
+                  {item.quantity > 1 ? ` × ${item.quantity}` : ''}
+                </span>
+                {item.product === 'stl' ? (
+                  <button type="button"
+                    className="download-link order-download"
+                    disabled={item.status !== 'ready'}
+                    onClick={() => downloadOrderItem(item)}>
+                    {item.status === 'ready'
+                      ? 'Download STL' : 'Preparing…'}
+                  </button>
+                ) : (
+                  <small className="order-item-note">Order placed</small>
+                )}
+              </div>
+            ))}
+          </div>
+          <button type="button" className="cart-continue"
+            onClick={onDismissOrder}>
+            Create Another Ornament
+          </button>
+        </div>
+      )}
+      {!order && hasOrderAccess && (
+        <button type="button" className="order-reopen" onClick={onShowOrder}>
+          View your recent order
+        </button>
       )}
       {downloadUrl && paid && paidSessionId && (
         <>

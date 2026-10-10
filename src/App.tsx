@@ -17,6 +17,7 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import './App.css'
 import DownloadPanel, { API } from './DownloadPanel'
+import CartPanel, { type CartItem } from './CartPanel'
 
 const designs = [
   {
@@ -612,14 +613,151 @@ export default function App() {
     useState<string | null>(null)
   const [printedOrdered, setPrintedOrdered] =
     useState(false)
+  const [order, setOrder] =
+    useState<{ id: string; key: string; status: string;
+               items: { id: number; product: string; name: string;
+                        quantity: number; status: string;
+                        label: string }[] } | null>(null)
+  const [orderVisible, setOrderVisible] = useState(false)
+  const [orderAccess, setOrderAccess] =
+    useState<{ order_id: string; key: string } | null>(null)
+
+  // Order detail requires the access key in a header — never a URL
+  // parameter — so tokens don't land in logs or browser history.
+  async function loadOrder(orderId: string, key: string) {
+    try {
+      const res = await fetch(`${API}/api/orders/${orderId}`, {
+        headers: { 'X-Order-Key': key },
+      })
+      if (!res.ok) throw new Error('not found')
+      const data = await res.json()
+      setOrder({ id: orderId, key, status: data.status,
+                 items: data.items })
+      setOrderVisible(true)
+      setOrderAccess({ order_id: orderId, key })
+      localStorage.setItem('lastOrder',
+        JSON.stringify({ order_id: orderId, key, dismissed: false }))
+    } catch {
+      localStorage.removeItem('lastOrder')
+      setOrderAccess(null)
+      setOrder(null)
+      setOrderVisible(false)
+    }
+  }
+
+  // Dismissal hides the confirmation but keeps the entitlement: the
+  // access key stays in localStorage so the order can be re-shown.
+  function dismissOrder() {
+    setOrderVisible(false)
+    if (orderAccess) {
+      localStorage.setItem('lastOrder', JSON.stringify(
+        { ...orderAccess, dismissed: true }))
+    }
+  }
   const checkoutHandled = useRef(false)
+
+  const [generatedJobId, setGeneratedJobId] =
+    useState<string | null>(null)
+  const [generatedPreview, setGeneratedPreview] =
+    useState<string | null>(null)
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ornamentCart') ?? '[]')
+    } catch {
+      return []
+    }
+  })
+  const [cartOpen, setCartOpen] = useState(false)
+
+  // Persist the cart and extend backend retention for its STL folders.
+  useEffect(() => {
+    localStorage.setItem('ornamentCart', JSON.stringify(cart))
+    if (cart.length) {
+      fetch(`${API}/api/cart/pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_ids: cart.map((i) => i.jobId) }),
+      }).catch(() => {})
+    }
+  }, [cart])
+
+  function addToCart(product: 'stl' | 'printed') {
+    if (!stlValid || !generatedJobId || !downloadUrl || !generatedPreview) {
+      return
+    }
+    setCart((prev) => {
+      const existing = prev.find(
+        (i) => i.jobId === generatedJobId && i.product === product)
+      if (existing) {
+        return product === 'printed'
+          ? prev.map((i) => (i === existing
+              ? { ...i, quantity: Math.min(50, i.quantity + 1) }
+              : i))
+          : prev
+      }
+      return [...prev, {
+        id: crypto.randomUUID(),
+        jobId: generatedJobId,
+        product,
+        name, selectedModel, showName, selectedFont, textSize,
+        downloadUrl, previewUrl: generatedPreview,
+        quantity: 1, addedAt: Date.now(),
+      }]
+    })
+  }
+
+  async function checkoutCart(items: CartItem[]) {
+    const response = await fetch(`${API}/api/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: items.map((i) => ({
+          job_id: i.jobId, product: i.product, quantity: i.quantity,
+          params: {
+            name: i.showName ? i.name : '', design: i.selectedModel,
+            font: i.selectedFont, fontSize: i.textSize,
+            showName: i.showName,
+          },
+        })),
+      }),
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(typeof data.detail === 'string'
+        ? data.detail : 'Checkout failed.')
+    }
+    if (items.length === 1) {
+      // Single-item carts reuse the legacy return path so an STL
+      // purchase still unlocks its download.
+      const item = items[0]
+      sessionStorage.setItem('pendingPurchase', JSON.stringify({
+        name: item.name, selectedModel: item.selectedModel,
+        showName: item.showName, selectedFont: item.selectedFont,
+        textSize: item.textSize, url: item.downloadUrl,
+        preview: item.previewUrl, job: item.jobId, product: item.product,
+        key: JSON.stringify({
+          name: item.name, selectedModel: item.selectedModel,
+          showName: item.showName, selectedFont: item.selectedFont,
+          textSize: item.textSize,
+        }),
+      }))
+    } else {
+      sessionStorage.setItem('pendingPurchase', JSON.stringify({
+        product: 'cart', order_id: data.order_id,
+      }))
+    }
+    window.location.href = data.url
+  }
 
   // Load the generated STL outside the Canvas so a load failure
   // leaves the live preview and the download link untouched.
-  const handleGenerated = useCallback((url: string, preview: string) => {
+  const handleGenerated = useCallback(
+    (url: string, preview: string, jobId?: string) => {
     const key = paramsKey
     const id = ++generatedLoad.current
     setDownloadUrl(url)
+    setGeneratedPreview(preview)
+    setGeneratedJobId(jobId ?? null)
     new STLLoader().load(
       preview,
       (g) => {
@@ -651,17 +789,40 @@ export default function App() {
     const params = new URLSearchParams(window.location.search)
     const payment = params.get('payment')
     const sessionId = params.get('session_id')
-    if (!payment) return
+    if (!payment) {
+      // Same-browser convenience: restore the last paid order's
+      // downloads after a refresh.
+      const last = localStorage.getItem('lastOrder')
+      if (last) {
+        try {
+          const { order_id, key, dismissed } = JSON.parse(last)
+          setOrderAccess({ order_id, key })
+          if (!dismissed) loadOrder(order_id, key)
+        } catch { /* ignore */ }
+      }
+      return
+    }
     window.history.replaceState({}, '', window.location.pathname)
     if (payment !== 'success' || !sessionId) return
     const stash = sessionStorage.getItem('pendingPurchase')
     if (!stash) return
     fetch(`${API}/api/checkout/status?session_id=${encodeURIComponent(sessionId)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(({ paid, job_id, product }:
-        { paid: boolean; job_id?: string; product?: string }) => {
+      .then(({ paid, job_id, product, order_id, access_token }:
+        { paid: boolean; job_id?: string; product?: string;
+          order_id?: string; access_token?: string }) => {
         const s = JSON.parse(stash)
-        if (!paid || job_id !== s.job || product !== s.product) return
+        if (!paid) return
+        if (product === 'cart') {
+          if (!order_id || s.order_id !== order_id || !access_token) {
+            return
+          }
+          setCart([])
+          loadOrder(order_id, access_token)
+          sessionStorage.removeItem('pendingPurchase')
+          return
+        }
+        if (job_id !== s.job || product !== s.product) return
         setName(s.name)
         setSelectedModel(s.selectedModel)
         setShowName(s.showName)
@@ -676,6 +837,9 @@ export default function App() {
         } else {
           setPrintedOrdered(true)
         }
+        // The purchased item leaves the cart.
+        setCart((c) => c.filter(
+          (i) => !(i.jobId === s.job && i.product === product)))
         sessionStorage.removeItem('pendingPurchase')
         new STLLoader().load(
           s.preview,
@@ -814,9 +978,14 @@ export default function App() {
           paidSessionId={paidSessionId}
           paramsKey={paramsKey}
           printedOrdered={printedOrdered}
+          order={orderVisible ? order : null}
+          hasOrderAccess={orderAccess != null}
+          onDismissOrder={dismissOrder}
+          onShowOrder={() => orderAccess
+            && loadOrder(orderAccess.order_id, orderAccess.key)}
           onReady={handleGenerated}
+          onAddToCart={addToCart}
         />
-
         {ornSize && (
           <small className="approx-size">
             Approx. size: {Math.round(ornSize.x)} × {Math.round(ornSize.y)} mm
@@ -907,6 +1076,27 @@ export default function App() {
           </Canvas>
         </PreviewErrorBoundary>
       </section>
+
+      <button type="button" className="cart-fab" aria-label="Open cart"
+        onClick={() => setCartOpen(true)}>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+          strokeLinejoin="round">
+          <circle cx="9" cy="21" r="1" />
+          <circle cx="20" cy="21" r="1" />
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+        </svg>
+        {cart.length > 0 && <span className="cart-badge">{cart.length}</span>}
+      </button>
+      <CartPanel
+        items={cart}
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        onQuantity={(id, q) => setCart((c) => c.map(
+          (i) => (i.id === id ? { ...i, quantity: q } : i)))}
+        onRemove={(id) => setCart((c) => c.filter((i) => i.id !== id))}
+        onCheckout={checkoutCart}
+      />
     </main>
   )
 }
