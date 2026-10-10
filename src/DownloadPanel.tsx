@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
+import { downloadOrderItem as fetchOrderItemDownload } from './orders'
 
 export const API = import.meta.env.DEV
   ? (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
@@ -36,13 +38,16 @@ type OrderItem = {
   label: string
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, order, hasOrderAccess, onDismissOrder, onShowOrder, onReady, onAddToCart }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, order, hasOrderAccess, onDismissOrder, onReady, onAddToCart, generatedJobId, previewUrl }: {
+
   name: string
   selectedModel: string
   showName: boolean
   selectedFont: string
   textSize: number
   downloadUrl?: string | null
+  generatedJobId?: string | null
+  previewUrl?: string | null
   stlValid?: boolean
   paid?: boolean
   printedOrdered?: boolean
@@ -50,7 +55,6 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
             items: OrderItem[] } | null
   hasOrderAccess?: boolean
   onDismissOrder?: () => void
-  onShowOrder?: () => void
   paidSessionId?: string | null
   paramsKey?: string
   onReady?: (downloadUrl: string, previewUrl: string, jobId?: string) => void
@@ -59,8 +63,6 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   const [busy, setBusy] = useState(false)
   const [buying, setBuying] = useState(false)
   const [purchaseKind, setPurchaseKind] = useState<'stl' | 'printed'>('stl')
-  const [generatedJobId, setGeneratedJobId] = useState<string | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -116,8 +118,6 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
           if (!job.preview_url) throw new Error('Missing preview URL.')
           const url = `${API}${job.download_url}`
           const preview = `${API}${job.preview_url}`
-          setGeneratedJobId(job.id)
-          setPreviewUrl(preview)
           onReady?.(url, preview, job.id)
           setMessage(showName ? `Ready: ${name.trim()}` : 'Ready')
           setSuccess(true)
@@ -145,17 +145,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     if (!order) return
     setError('')
     try {
-      const res = await fetch(
-        `${API}/api/orders/${order.id}/download/${item.id}`,
-        { headers: { 'X-Order-Key': order.key } })
-      if (!res.ok) throw new Error(`Download failed (${res.status})`)
-      const blob = await res.blob()
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download =
-        `${(item.name || 'snowflake').replace(/ /g, '_')}_ornament.stl`
-      a.click()
-      URL.revokeObjectURL(a.href)
+      await fetchOrderItemDownload(order.key, order.id, item)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -285,9 +275,9 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         </div>
       )}
       {!order && hasOrderAccess && (
-        <button type="button" className="order-reopen" onClick={onShowOrder}>
-          View your recent order
-        </button>
+        <Link className="order-reopen" to="/orders">
+          View My Orders
+        </Link>
       )}
       {downloadUrl && paid && paidSessionId && (
         <>

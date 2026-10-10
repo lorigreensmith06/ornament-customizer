@@ -206,7 +206,7 @@ body {
 
 /* Download link styled as a secondary button next to Generate */
 
-.controls .download-link {
+.download-link {
   display: block;
   width: 100%;
   margin-top: 0.5rem;
@@ -220,7 +220,7 @@ body {
   color: #8a6d33;
 }
 
-.controls .download-link:hover {
+.download-link:hover {
   background: #f5ecdc;
 }
 
@@ -423,38 +423,38 @@ body {
   font-size: 1.05rem;
 }
 
-.controls .order-confirm-item {
+.order-confirm-item {
   padding: 0.55rem 0;
   border-top: 1px solid #eee4d0;
 }
 
-.controls .order-confirm-name {
+.order-confirm-name {
   display: block;
   font-weight: 700;
   color: #555;
   font-size: 0.9rem;
 }
 
-.controls .order-confirm-item .order-item-type {
+.order-confirm-item .order-item-type {
   display: block;
   color: #777;
   font-size: 0.78rem;
   margin-bottom: 0.4rem;
 }
 
-.controls .order-download {
+.order-download {
   border: 1px solid #c6a15b;
   cursor: pointer;
   font-family: inherit;
   font-size: 0.9rem;
 }
 
-.controls .order-download:disabled {
+.order-download:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.controls .order-item-note {
+.order-item-note {
   display: block;
   margin-top: 0.25rem;
   color: #376a30;

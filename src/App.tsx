@@ -20,6 +20,7 @@ import './App.css'
 import DownloadPanel, { API } from './DownloadPanel'
 import CartPanel, { type CartItem } from './CartPanel'
 import Header from './components/Header'
+import { recordOrder } from './orders'
 import ExplorePage from './pages/ExplorePage'
 import OrdersPage from './pages/OrdersPage'
 
@@ -649,6 +650,7 @@ export default function App() {
       setOrderAccess({ order_id: orderId, key })
       localStorage.setItem('lastOrder',
         JSON.stringify({ order_id: orderId, key, dismissed: false }))
+      recordOrder(orderId, key)
     } catch {
       localStorage.removeItem('lastOrder')
       setOrderAccess(null)
@@ -835,6 +837,15 @@ export default function App() {
           return
         }
         if (job_id !== s.job || product !== s.product) return
+        // Persist order access for My Orders without changing the
+        // Create page's single-item flow (the confirm card stays
+        // dismissed; the legacy unlock below is untouched).
+        if (order_id && access_token) {
+          setOrderAccess({ order_id, key: access_token })
+          localStorage.setItem('lastOrder', JSON.stringify(
+            { order_id, key: access_token, dismissed: true }))
+          recordOrder(order_id, access_token)
+        }
         setName(s.name)
         setSelectedModel(s.selectedModel)
         setShowName(s.showName)
@@ -997,10 +1008,10 @@ export default function App() {
           order={orderVisible ? order : null}
           hasOrderAccess={orderAccess != null}
           onDismissOrder={dismissOrder}
-          onShowOrder={() => orderAccess
-            && loadOrder(orderAccess.order_id, orderAccess.key)}
           onReady={handleGenerated}
           onAddToCart={addToCart}
+          generatedJobId={generatedJobId}
+          previewUrl={generatedPreview}
         />
         {ornSize && (
           <small className="approx-size">

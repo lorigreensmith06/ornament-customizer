@@ -191,6 +191,30 @@ body {
   background: var(--gold-dark);
 }
 
+/* ---------- My Orders ---------- */
+
+.orders-summary {
+  margin-top: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.orders-error {
+  margin-top: 0.75rem;
+  color: #a02424;
+  font-size: 0.9rem;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.order-card {
+  margin: 0;
+}
+
 /* ---------- Explore ---------- */
 
 .design-grid {
