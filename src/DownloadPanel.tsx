@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { downloadOrderItem as fetchOrderItemDownload } from './orders'
 
-export const API = import.meta.env.VITE_API_URL
-  || (import.meta.env.DEV
-    ? 'http://127.0.0.1:8000'
-    : 'https://api.ornamentcreator.com')
+export const API = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
+  : 'https://api.ornamentcreator.com'
+
 const DESIGN_IDS: Record<string, string> = {
   '/models/snowflake_two_pairs.stl': 'two_branch',
   '/models/snowflake_three_pairs.stl': 'three_branch',
