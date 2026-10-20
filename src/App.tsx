@@ -897,10 +897,12 @@ export default function App() {
         <Route path="/" element={
           <div className="app-main">
             <section className="controls">
-        <h1>Personalized Snowflake Ornament</h1>
+        <h1>Personalize your ornament</h1>
 
         <div className="control-section">
-          <div className="section-heading">Design</div>
+          <div className="section-heading">
+            <span className="step-num">1</span>Design
+          </div>
 
           <label htmlFor="design">Snowflake design</label>
           <select
@@ -917,7 +919,9 @@ export default function App() {
         </div>
 
         <div className="control-section">
-          <div className="section-heading">Personalization</div>
+          <div className="section-heading">
+            <span className="step-num">2</span>Personalize
+          </div>
 
           <label className="checkbox-label">
             <input
@@ -993,7 +997,11 @@ export default function App() {
           )}
         </div>
 
-        <DownloadPanel
+        <div className="control-section">
+          <div className="section-heading">
+            <span className="step-num">3</span>Create
+          </div>
+          <DownloadPanel
           name={name}
           selectedModel={selectedModel}
           showName={showName}
@@ -1012,13 +1020,8 @@ export default function App() {
           onAddToCart={addToCart}
           generatedJobId={generatedJobId}
           previewUrl={generatedPreview}
-        />
-        {ornSize && (
-          <small className="approx-size">
-            Approx. size: {Math.round(ornSize.x)} × {Math.round(ornSize.y)} mm
-            ({(ornSize.x / 25.4).toFixed(1)} × {(ornSize.y / 25.4).toFixed(1)} in)
-          </small>
-        )}
+          />
+        </div>
       </section>
 
       <section className="preview">
@@ -1050,6 +1053,13 @@ export default function App() {
         </p>
 
         <p className="viewport-hint">Drag to rotate • Scroll to zoom</p>
+
+        {ornSize && (
+          <span className="size-chip">
+            {Math.round(ornSize.x)} × {Math.round(ornSize.y)} mm
+            ({(ornSize.x / 25.4).toFixed(1)} × {(ornSize.y / 25.4).toFixed(1)} in)
+          </span>
+        )}
 
         <PreviewErrorBoundary
           key={selectedModel}

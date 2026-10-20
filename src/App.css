@@ -18,11 +18,12 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 .app-main {
   display: grid;
-  grid-template-columns: minmax(280px, 340px) 1fr;
+  grid-template-columns: minmax(320px, 360px) 1fr;
   grid-template-areas: "controls preview";
   flex: 1;
   min-height: 0;
@@ -30,32 +31,55 @@ body {
 /* CONTROLS */
 
 .controls {
-  padding: 2rem 1.75rem;
-  background: white;
-  box-shadow: 4px 0 20px rgb(0 0 0 / 8%);
+  padding: 1.5rem 1.25rem 2rem;
+  background: var(--cream);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
   z-index: 1;
 }
 
 .controls h1 {
-  margin: 0 0 2rem;
-  font-size: 1.75rem;
-  line-height: 1.1;
-  color: #252525;
+  margin: 0 0 1.25rem;
+  font-family: var(--serif);
+  font-size: 1.4rem;
+  line-height: 1.15;
+  color: var(--ink);
 }
 
 /* Groups */
 
 .control-section {
-  margin-bottom: 1.75rem;
+  margin-bottom: 1rem;
+  padding: 1.1rem 1.2rem 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgb(60 45 20 / 5%);
 }
 
 .section-heading {
-  margin-bottom: 0.75rem;
-  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+  color: var(--gold-ink);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--gold-10);
+  color: var(--gold-ink);
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 /* Labels */
@@ -76,10 +100,10 @@ body {
   width: 100%;
   height: 2.6rem;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background: white;
-  color: #252525;
+  color: var(--ink);
   font: inherit;
 }
 
@@ -174,14 +198,20 @@ body {
   color: #c6a15b;
 }
 
-/* Approximate size */
+/* Approximate size — floating chip inside the viewer frame */
 
-.approx-size {
-  display: block;
-  margin-top: 0.75rem;
-  color: #666;
-  font-size: 0.8rem;
-  line-height: 1.4;
+.size-chip {
+  position: absolute;
+  bottom: 1.9rem;
+  left: 1.9rem;
+  z-index: 2;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 85%);
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 /* Generate button */
@@ -192,16 +222,16 @@ body {
   margin-top: 0.5rem;
   padding: 0.75rem 1rem;
   border: 0;
-  border-radius: 4px;
+  border-radius: 8px;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
-  background: #c6a15b;
+  background: var(--gold);
   color: white;
 }
 
 .controls button:hover {
-  background: #b8904a;
+  background: var(--gold-dark);
 }
 
 /* Download link styled as a secondary button next to Generate */
@@ -243,7 +273,7 @@ body {
   width: 100%;
   padding: 0.65rem 0.9rem;
   border: 1px solid #ddd0b8;
-  border-radius: 6px;
+  border-radius: 10px;
   background: #fff;
   text-align: left;
   cursor: pointer;
@@ -288,7 +318,7 @@ body {
   margin-top: 0.5rem;
   padding: 0.65rem 1rem;
   border: 1px solid #c6a15b;
-  border-radius: 4px;
+  border-radius: 8px;
   font-weight: 700;
   text-align: center;
   background: #fff;
@@ -505,23 +535,33 @@ body {
 .preview {
   position: relative;
   grid-area: preview;
-  min-height: 100vh;
+  min-height: 0;
+  padding: 1.25rem;
+  background: var(--bg);
+}
+
+.preview canvas {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgb(60 45 20 / 10%);
 }
 
 /* Viewport mode selector */
 
 .view-toggle {
   position: absolute;
-  top: 1rem;
+  top: 1.9rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
   display: flex;
   gap: 0.25rem;
   padding: 0.25rem;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgb(255 255 255 / 90%);
-  box-shadow: 0 1px 6px rgb(0 0 0 / 12%);
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 6px rgb(0 0 0 / 10%);
 }
 
 .view-toggle button {
@@ -550,7 +590,7 @@ body {
 
 .view-note {
   position: absolute;
-  top: 3.7rem;
+  top: 4.7rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
@@ -565,15 +605,16 @@ body {
 
 .viewport-hint {
   position: absolute;
-  bottom: 1rem;
+  bottom: 1.9rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
   margin: 0;
-  padding: 0.2rem 0.6rem;
-  border-radius: 4px;
-  background: rgb(255 255 255 / 80%);
-  color: #666;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 85%);
+  color: var(--muted);
   font-size: 0.78rem;
   white-space: nowrap;
   pointer-events: none;
@@ -582,9 +623,15 @@ body {
 /* MOBILE */
 
 @media (max-width: 700px) {
+  .app {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .app-main {
     grid-template-columns: 1fr;
-    grid-template-rows: 40vh 1fr;
+    grid-template-rows: 45vh 1fr;
     grid-template-areas:
       "preview"
       "controls";
@@ -592,7 +639,29 @@ body {
 
   .preview {
     min-height: 0;
-    height: 40vh;
+    height: 45vh;
+    padding: 0.75rem;
+  }
+
+  .preview canvas {
+    border-radius: 10px;
+  }
+
+  .view-toggle {
+    top: 1.4rem;
+  }
+
+  .view-note {
+    top: 4rem;
+  }
+
+  .viewport-hint {
+    bottom: 1.4rem;
+  }
+
+  .size-chip {
+    bottom: 1.4rem;
+    left: 1.4rem;
   }
 
   .controls {
