@@ -144,9 +144,158 @@ body {
 /* ---------- Generic page (non-studio routes) ---------- */
 
 .page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
   max-width: 980px;
   margin: 0 auto;
   padding: 3rem 1.5rem 4rem;
+}
+
+/* ---------- Homepage ---------- */
+
+.home {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: min(72vh, 620px);
+  overflow: hidden;
+  background: #1c160d;
+}
+
+.hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 68% center;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(18, 13, 6, 0.62) 0%,
+    rgba(18, 13, 6, 0.42) 38%,
+    rgba(18, 13, 6, 0) 68%
+  );
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 34rem;
+  padding: 4rem 1.5rem 4rem clamp(1.5rem, 7vw, 7rem);
+  color: #fff;
+}
+
+.hero-title {
+  margin: 0 0 1rem;
+  font-family: var(--serif);
+  font-size: clamp(2.4rem, 5vw, 3.75rem);
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.hero-lead {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.hero-sub {
+  margin: 0 0 1.75rem;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+}
+
+.hero-cta,
+.hero-cta-outline {
+  display: inline-block;
+  padding: 0.85rem 1.9rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.hero-cta {
+  background: var(--gold);
+  color: #fff;
+}
+
+.hero-cta:hover {
+  background: var(--gold-dark);
+}
+
+.hero-cta-outline {
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  background: rgba(20, 14, 7, 0.15);
+  color: #fff;
+}
+
+.hero-cta-outline:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5rem;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 4.5rem;
+  text-align: center;
+}
+
+.feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  margin-bottom: 1rem;
+  border-radius: 50%;
+  background: var(--gold-10);
+  color: var(--gold-dark);
+}
+
+.feature-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.feature-title {
+  margin: 0 0 0.5rem;
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  color: var(--ink);
+}
+
+.feature-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
 }
 
 .page-title {
@@ -189,6 +338,18 @@ body {
 
 .btn:hover {
   background: var(--gold-dark);
+}
+
+/* ---------- About ---------- */
+
+.about-link {
+  color: var(--gold-ink);
+}
+
+.about-note {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 /* ---------- My Orders ---------- */
@@ -311,5 +472,52 @@ body {
 
   .page-title {
     font-size: 1.6rem;
+  }
+
+  /* Homepage: stack image above text so the ornament stays visible */
+
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+  }
+
+  .hero-img {
+    position: static;
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    object-position: center 42%;
+  }
+
+  .hero::before {
+    display: none;
+  }
+
+  .hero-content {
+    max-width: none;
+    padding: 2rem 1.25rem 2.75rem;
+    background: #1c160d;
+  }
+
+  .hero-title {
+    font-size: 2.1rem;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .hero-cta,
+  .hero-cta-outline {
+    text-align: center;
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 3rem 1.25rem 3.5rem;
   }
 }

@@ -117,7 +117,7 @@ export default function OrdersPage() {
       {orders.length === 0 ? (
         <div className="card">
           <p>No orders found on this device yet.</p>
-          <Link className="btn" to="/">Create your first ornament</Link>
+          <Link className="btn" to="/create">Create your first ornament</Link>
         </div>
       ) : (
         <div className="orders-list">

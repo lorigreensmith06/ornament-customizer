@@ -31,7 +31,7 @@ export default function ExplorePage() {
           <Link
             key={design.file}
             className="design-card"
-            to={`/?design=${encodeURIComponent(design.file)}`}
+            to={`/create?design=${encodeURIComponent(design.file)}`}
           >
             <span className="design-thumb" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"

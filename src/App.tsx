@@ -15,13 +15,15 @@ import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.j
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
 import './App.css'
 import DownloadPanel, { API } from './DownloadPanel'
 import CartPanel, { type CartItem } from './CartPanel'
 import Header from './components/Header'
 import { recordOrder } from './orders'
+import AboutPage from './pages/AboutPage'
 import ExplorePage from './pages/ExplorePage'
+import HomePage from './pages/HomePage'
 import OrdersPage from './pages/OrdersPage'
 
 const designs = [
@@ -574,6 +576,7 @@ class PreviewErrorBoundary extends Component<
 }
 
 export default function App() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const requestedDesign = searchParams.get('design')
   const [selectedModel, setSelectedModel] =
@@ -816,7 +819,10 @@ export default function App() {
       }
       return
     }
-    window.history.replaceState({}, '', window.location.pathname)
+    // Stripe returns to '/' (the backend success URL); params are
+    // already captured above, so strip them and show the customizer
+    // where the confirmation/downloads live.
+    navigate('/create', { replace: true })
     if (payment !== 'success' || !sessionId) return
     const stash = sessionStorage.getItem('pendingPurchase')
     if (!stash) return
@@ -894,7 +900,8 @@ export default function App() {
     <main className="app">
       <Header cartCount={cart.length} onCartOpen={() => setCartOpen(true)} />
       <Routes>
-        <Route path="/" element={
+        <Route path="/" element={<HomePage />} />
+        <Route path="/create" element={
           <div className="app-main">
             <section className="controls">
         <h1>Personalize your ornament</h1>
@@ -1117,6 +1124,7 @@ export default function App() {
         } />
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <CartPanel

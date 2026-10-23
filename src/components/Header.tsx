@@ -32,7 +32,7 @@ export default function Header({ cartCount, onCartOpen }: {
   const [menuOpen, setMenuOpen] = useState(false)
   const navLinks = (
     <>
-      <NavLink to="/" end onClick={() => setMenuOpen(false)}>
+      <NavLink to="/create" onClick={() => setMenuOpen(false)}>
         Create
       </NavLink>
       <NavLink to="/explore" onClick={() => setMenuOpen(false)}>
@@ -40,6 +40,9 @@ export default function Header({ cartCount, onCartOpen }: {
       </NavLink>
       <NavLink to="/orders" onClick={() => setMenuOpen(false)}>
         My Orders
+      </NavLink>
+      <NavLink to="/about" onClick={() => setMenuOpen(false)}>
+        About Us
       </NavLink>
     </>
   )

@@ -297,6 +297,31 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         </p>,
         document.querySelector('.preview') ?? document.body,
       )}
+      <details className="product-details">
+        <summary>Product details &amp; shipping</summary>
+        <div className="product-details-body">
+          <p><strong>Printed Ornament — $15</strong></p>
+          <ul>
+            <li>Made-to-order 3D-printed ornament</li>
+            <li>PLA plastic in Metallic Gold</li>
+            <li>
+              Approximately 3.6 inches tall. Width varies depending on
+              the personalized name.
+            </li>
+          </ul>
+          <p><strong>Digital STL Download — $3</strong></p>
+          <ul>
+            <li>Personalized STL file — requires a 3D printer</li>
+            <li>Digital product only; available after payment</li>
+          </ul>
+          <p><strong>Production &amp; shipping</strong></p>
+          <p>
+            Each ornament is made to order and shipped directly to you.
+            Estimated delivery: 8–11 business days, including production
+            and shipping. U.S. shipping is included in the price.
+          </p>
+        </div>
+      </details>
       <p role="status">{message}</p>
       {error && <pre role="alert" style={{ whiteSpace: 'pre-wrap', color: '#a02424' }}>
         {error}
