@@ -15,7 +15,7 @@ import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.j
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
-import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import './App.css'
 import DownloadPanel, { API } from './DownloadPanel'
 import CartPanel, { type CartItem } from './CartPanel'
@@ -25,6 +25,12 @@ import AboutPage from './pages/AboutPage'
 import ExplorePage from './pages/ExplorePage'
 import HomePage from './pages/HomePage'
 import OrdersPage from './pages/OrdersPage'
+import PrivacyPage from './pages/PrivacyPage'
+import ReturnsPage from './pages/ReturnsPage'
+import TermsPage from './pages/TermsPage'
+import Footer from './components/Footer'
+import CookieConsent from './components/CookieConsent'
+import { initAnalytics, trackPageView } from './analytics'
 
 const designs = [
   {
@@ -577,7 +583,15 @@ class PreviewErrorBoundary extends Component<
 
 export default function App() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [searchParams] = useSearchParams()
+
+  // Analytics: init is a no-op until consent is granted; each route
+  // change reports one page_view (config disables GA's auto first hit).
+  useEffect(() => {
+    initAnalytics()
+    trackPageView()
+  }, [pathname])
   const requestedDesign = searchParams.get('design')
   const [selectedModel, setSelectedModel] =
     useState(designs[0].file)
@@ -899,6 +913,7 @@ export default function App() {
   return (
     <main className="app">
       <Header cartCount={cart.length} onCartOpen={() => setCartOpen(true)} />
+      <div className="page-scroll">
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/create" element={
@@ -1125,8 +1140,17 @@ export default function App() {
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/returns" element={<Navigate to="/refunds" replace />} />
+        <Route path="/refunds" element={<ReturnsPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {/* The studio fills the viewport; the footer only appears on
+          content pages, at the end of the scroll flow. */}
+      {pathname !== '/create' && <Footer />}
+      </div>
+      <CookieConsent />
       <CartPanel
         items={cart}
         open={cartOpen}

@@ -143,10 +143,17 @@ body {
 
 /* ---------- Generic page (non-studio routes) ---------- */
 
-.page {
+/* Single scroll area for all routes; the footer rides at the end. */
+.page-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  flex: 1 0 auto;
   width: 100%;
   max-width: 980px;
   margin: 0 auto;
@@ -156,9 +163,7 @@ body {
 /* ---------- Homepage ---------- */
 
 .home {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 1 0 auto;
 }
 
 .hero {
@@ -340,6 +345,146 @@ body {
   background: var(--gold-dark);
 }
 
+/* ---------- Footer ---------- */
+
+.site-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.footer-inner {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 2rem;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2.25rem 1.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.footer-col p {
+  margin: 0 0 0.4rem;
+}
+
+.footer-brand {
+  font-family: var(--serif);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.footer-heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+}
+
+.footer-col a {
+  color: var(--gold-ink);
+  text-decoration: none;
+}
+
+.footer-col a:hover {
+  text-decoration: underline;
+}
+
+.footer-muted {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+/* ---------- Cookie consent ---------- */
+
+.cookie-banner {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0.9rem 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+
+.cookie-text {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.cookie-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.cookie-accept,
+.cookie-decline {
+  padding: 0.5rem 1.1rem;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cookie-accept {
+  border: 0;
+  background: var(--gold);
+  color: #fff;
+}
+
+.cookie-accept:hover {
+  background: var(--gold-dark);
+}
+
+.cookie-decline {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--muted);
+}
+
+.cookie-decline:hover {
+  color: var(--ink);
+}
+
+/* ---------- Legal pages ---------- */
+
+.legal-doc {
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.legal-doc h2 {
+  margin: 2rem 0 0.6rem;
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  color: var(--ink);
+}
+
+.legal-doc ul {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.4rem;
+}
+
+.legal-doc a {
+  color: var(--gold-ink);
+}
+
 /* ---------- About ---------- */
 
 .about-link {
@@ -519,5 +664,20 @@ body {
     grid-template-columns: 1fr;
     gap: 2rem;
     padding: 3rem 1.25rem 3.5rem;
+  }
+
+  .footer-inner {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1.75rem 1.25rem;
+  }
+
+  .cookie-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cookie-actions {
+    justify-content: flex-end;
   }
 }
