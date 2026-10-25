@@ -962,6 +962,7 @@ export default function App() {
                 value={name}
                 maxLength={24}
                 aria-describedby="name-help"
+                data-clarity-mask="true"
                 onChange={(event) =>
                   setName(
                     event.target.value
@@ -1046,7 +1047,7 @@ export default function App() {
         </div>
       </section>
 
-      <section className="preview">
+      <section className="preview" data-clarity-mask="true">
         <div className="view-toggle" role="group" aria-label="Viewport mode">
           <button
             type="button"

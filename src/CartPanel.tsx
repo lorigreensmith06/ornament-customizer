@@ -61,7 +61,7 @@ export default function CartPanel({ items, open, onClose, onQuantity, onRemove, 
               {items.map((item) => (
                 <div className="cart-item" key={item.id}>
                   <div className="cart-item-info">
-                    <span className="cart-item-name">
+                    <span className="cart-item-name" data-clarity-mask="true">
                       {item.showName && item.name ? `"${item.name}"` : 'Snowflake'}
                     </span>
                     <span className="cart-item-type">

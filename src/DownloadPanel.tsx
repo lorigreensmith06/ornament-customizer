@@ -242,7 +242,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
         </small>
       )}
       {order && (
-        <div className="order-confirm">
+        <div className="order-confirm" data-clarity-mask="true">
           <p className="order-confirm-title">Order Confirmed!</p>
           <div className="order-confirm-items">
             {order.items.map((item) => (
@@ -322,7 +322,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
           </p>
         </div>
       </details>
-      <p role="status">{message}</p>
+      <p role="status" data-clarity-mask="true">{message}</p>
       {error && <pre role="alert" style={{ whiteSpace: 'pre-wrap', color: '#a02424' }}>
         {error}
       </pre>}

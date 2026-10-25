@@ -43,7 +43,7 @@ function OrderCard({ stored }: { stored: StoredOrder }) {
   }
 
   return (
-    <div className="card order-card">
+    <div className="card order-card" data-clarity-mask="true">
       <p className="orders-summary">
         Order <code>{stored.order_id.slice(0, 12)}…</code>
         {stored.at &&
