@@ -303,7 +303,10 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
           <p><strong>Printed Ornament — $15</strong></p>
           <ul>
             <li>Made-to-order 3D-printed ornament</li>
-            <li>PLA plastic in Metallic Gold</li>
+            <li>
+              Metallic bronze PLA plastic — an antique bronze finish;
+              plastic, not actual metal
+            </li>
             <li>
               Approximately 3.6 inches tall. Width varies depending on
               the personalized name.

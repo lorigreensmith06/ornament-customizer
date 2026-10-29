@@ -53,27 +53,41 @@ const fonts = [
     value: 'lato',
   },
   {
-    label: 'Arial Bold',
-    value: 'arial',
+    label: 'DejaVu Sans Bold',
+    value: 'dejavu',
   },
   {
-    label: 'Cambria Bold',
-    value: 'cambria',
+    label: 'Caladea Bold',
+    value: 'caladea',
   },
 ]
 
 // Font URL mapping for Three.js preview
 // Millimeters of cap height per unit of Name Size in the Houdini HDA.
-// Anchored on a generated STL: "LORI" measured 8.21mm at size 1.
-const MM_PER_SIZE = 8.00
+// Anchored on generated STLs: Lato/DejaVu match at 8.00; Caladea's
+// JSON metrics run ~3% narrow vs the installed TTF (rail_w 63.05 vs
+// preview 61.26 at size 1), so it gets its own factor.
+const MM_PER_SIZE: Record<string, number> = {
+  lato: 8.00,
+  dejavu: 8.00,
+  caladea: 8.23,
+  // Legacy IDs inherit their replacement font's factor.
+  arial: 8.00,
+  cambria: 8.23,
+  montserrat: 8.00,
+}
 // Rail thickness as a fraction of the rendered text height,
 // matching the HDA's transform6/transform7 sy = 0.2 on the text bbox.
 const RAIL_HEIGHT_FRACTION = 0.2
 const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
-  arial: '/fonts/Arial_Bold.json',
-  cambria: '/fonts/Cambria_Bold.json',
-  montserrat: '/fonts/Montserrat Subrayada_Bold.json',
+  dejavu: '/fonts/DejaVuSans_Bold.json',
+  caladea: '/fonts/Caladea_Bold.json',
+  // Legacy IDs from saved carts resolve to the same fonts the
+  // backend generates for them.
+  arial: '/fonts/DejaVuSans_Bold.json',
+  cambria: '/fonts/Caladea_Bold.json',
+  montserrat: '/fonts/Lato_Bold.json',
 }
 
 // All dimensions below use the STL's original coordinates, before display scale.
@@ -256,7 +270,7 @@ function NameAndRails({
 
     // Absolute scale in millimeters matching the HDA's font_size,
     // so each font keeps its natural cap-height/em ratio.
-    const finalScale = textSize * MM_PER_SIZE
+    const finalScale = textSize * (MM_PER_SIZE[selectedFont] ?? 8.00)
 
     result.scale(finalScale, finalScale, 1)
 
