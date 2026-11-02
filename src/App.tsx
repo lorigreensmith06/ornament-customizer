@@ -16,6 +16,7 @@ import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { useRouteMeta } from './seo'
 import './App.css'
 import DownloadPanel, { API } from './DownloadPanel'
 import CartPanel, { type CartItem } from './CartPanel'
@@ -923,6 +924,8 @@ export default function App() {
   useEffect(() => {
     return () => generatedGeom?.dispose()
   }, [generatedGeom])
+
+  useRouteMeta()
 
   return (
     <main className="app">

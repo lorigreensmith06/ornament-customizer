@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /orders
+
+Sitemap: https://ornamentcreator.com/sitemap.xml

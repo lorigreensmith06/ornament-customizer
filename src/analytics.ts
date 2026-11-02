@@ -1,8 +1,7 @@
 /* Analytics (GA4 + Microsoft Clarity) — loaded only after explicit
    consent. The vendor scripts are injected lazily so declining or
    unanswered visitors never download them, set cookies, or send data. */
-
-const GA_ID = import.meta.env.VITE_GA_ID || 'G-1H48HJKKMR'
+const GA_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-1H48HJKKMR';
 const CLARITY_ID = import.meta.env.VITE_CLARITY_ID as string | undefined
 const CONSENT_KEY = 'gaConsent'
 
