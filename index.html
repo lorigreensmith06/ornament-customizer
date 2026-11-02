@@ -56,14 +56,45 @@
           "name": "Printed Personalized Snowflake Ornament",
           "url": "https://ornamentcreator.com/create",
           "image": "https://ornamentcreator.com/ornament-og.png",
-          "description": "Made-to-order 3D-printed snowflake ornament personalized with your name. Metallic bronze PLA plastic. U.S. shipping included.",
-          "brand": { "@id": "https://ornamentcreator.com/#org" },
+          "description": "Made-to-order 3D-printed snowflake ornament personalized with your name. Metallic bronze PLA plastic. Standard U.S. shipping included.",
+          "brand": {
+            "@type": "Brand",
+            "name": "Ornament Creator"
+          },
           "offers": {
             "@type": "Offer",
             "price": "15.00",
             "priceCurrency": "USD",
             "availability": "https://schema.org/InStock",
-            "url": "https://ornamentcreator.com/create"
+            "url": "https://ornamentcreator.com/create",
+            "hasMerchantReturnPolicy": {
+              "@type": "MerchantReturnPolicy",
+              "applicableCountry": "US",
+              "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted",
+              "merchantReturnLink": "https://ornamentcreator.com/refunds",
+              "refundType": "https://schema.org/FullRefund"
+            },
+            "shippingDetails": {
+              "@type": "OfferShippingDetails",
+              "shippingDestination": {
+                "@type": "DefinedRegion",
+                "addressCountry": "US"
+              },
+              "shippingRate": {
+                "@type": "MonetaryAmount",
+                "value": "0",
+                "currency": "USD"
+              },
+              "deliveryTime": {
+                "@type": "ShippingDeliveryTime",
+                "handlingTime": {
+                  "@type": "QuantitativeValue",
+                  "minValue": 2,
+                  "maxValue": 5,
+                  "unitCode": "DAY"
+                }
+              }
+            }
           }
         },
         {
@@ -72,13 +103,23 @@
           "url": "https://ornamentcreator.com/create",
           "image": "https://ornamentcreator.com/ornament-og.png",
           "description": "Personalized 3D-printable STL file with your own name, delivered digitally. Requires a 3D printer.",
-          "brand": { "@id": "https://ornamentcreator.com/#org" },
+          "brand": {
+            "@type": "Brand",
+            "name": "Ornament Creator"
+          },
           "offers": {
             "@type": "Offer",
             "price": "3.00",
             "priceCurrency": "USD",
             "availability": "https://schema.org/InStock",
-            "url": "https://ornamentcreator.com/create"
+            "url": "https://ornamentcreator.com/create",
+            "hasMerchantReturnPolicy": {
+              "@type": "MerchantReturnPolicy",
+              "applicableCountry": "US",
+              "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted",
+              "merchantReturnLink": "https://ornamentcreator.com/refunds",
+              "refundType": "https://schema.org/FullRefund"
+            }
           }
         }
       ]
