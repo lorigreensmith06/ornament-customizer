@@ -178,7 +178,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   return (
     <div style={{ marginTop: '1rem' }}>
       {!stlValid && (
-        <button type="button" onClick={generate}
+        <button type="button" id="generate-stl-btn" onClick={generate}
           disabled={busy || (showName && !/[A-Z0-9]/.test(name))}>
           {busy ? 'Generating…' : 'Generate STL'}
         </button>

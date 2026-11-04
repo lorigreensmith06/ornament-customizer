@@ -12,6 +12,7 @@ export type OrderItem = {
 export type OrderDetail = {
   status: string
   email?: string | null
+  promo?: string | null
   items: OrderItem[]
 }
 

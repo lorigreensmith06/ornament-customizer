@@ -398,6 +398,204 @@ body {
   opacity: 0.75;
 }
 
+/* ---------- Free STL campaign ---------- */
+
+.announce-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold));
+  color: #fff;
+  font-size: 1.0625rem;
+  text-decoration: none;
+  text-align: center;
+}
+
+.announce-bar:hover {
+  filter: brightness(1.05);
+}
+
+.announce-bar-text {
+  font-weight: 600;
+}
+
+.announce-bar-cta {
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .announce-bar {
+    font-size: 0.875rem;
+    padding: 0.6rem 0.75rem;
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+    column-gap: 0.5rem;
+    line-height: 1.3;
+  }
+}
+
+.free-offer-hint {
+  margin: 0.45rem 0 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.free-offer-hint strong {
+  font-weight: 600;
+}
+
+.free-offer-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--gold);
+  border-left: 4px solid var(--gold-dark);
+  border-radius: 10px;
+  background: var(--gold-10);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.free-offer-warning strong {
+  font-size: 1rem;
+}
+
+.free-offer {
+  scroll-margin-top: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  background: var(--gold-10);
+}
+
+.free-offer-title {
+  margin: 0 0 0.4rem;
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.free-offer-text {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.free-offer-remaining {
+  margin: 0.65rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gold-ink);
+}
+
+.free-offer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.free-offer-form label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.free-offer-form input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+}
+
+.free-offer-form .btn,
+.free-offer-done .btn {
+  margin-top: 0.25rem;
+  align-self: flex-start;
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--gold-ink);
+  border: 1px solid var(--gold);
+}
+
+.btn.secondary:hover {
+  background: var(--gold-10);
+}
+
+.free-offer-notice {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--gold-ink);
+}
+
+.free-offer-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  color: #a02424;
+}
+
+.free-offer-feedback {
+  margin-top: 0.9rem;
+}
+
+.free-offer-feedback summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gold-ink);
+}
+
+.feedback-q {
+  display: block;
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.feedback-q textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.85rem;
+  background: #fff;
+  resize: vertical;
+}
+
+.feedback-photo {
+  margin: 0.7rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.feedback-share {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
 /* ---------- Cookie consent ---------- */
 
 .cookie-banner {

@@ -17,6 +17,8 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRouteMeta } from './seo'
+import FreeStlOffer from './components/FreeStlOffer'
+import AnnouncementBar from './components/AnnouncementBar'
 import './App.css'
 import DownloadPanel, { API } from './DownloadPanel'
 import CartPanel, { type CartItem } from './CartPanel'
@@ -929,6 +931,7 @@ export default function App() {
 
   return (
     <main className="app">
+      <AnnouncementBar />
       <Header cartCount={cart.length} onCartOpen={() => setCartOpen(true)} />
       <div className="page-scroll">
       <Routes>
@@ -1060,6 +1063,10 @@ export default function App() {
           onAddToCart={addToCart}
           generatedJobId={generatedJobId}
           previewUrl={generatedPreview}
+          />
+          <FreeStlOffer
+            jobId={generatedJobId}
+            stlValid={stlValid}
           />
         </div>
       </section>

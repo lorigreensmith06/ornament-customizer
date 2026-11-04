@@ -107,3 +107,15 @@ export function trackPageView() {
     page_title: document.title,
   })
 }
+
+/* Fire a custom GA4 event — consent-gated like everything else.
+   Never pass PII: no emails, names, or personalized ornament text. */
+export function trackEvent(
+  name: string,
+  params: Record<string, string | number> = {},
+) {
+  if (getConsent() !== 'granted' || typeof window.gtag !== 'function') {
+    return
+  }
+  window.gtag('event', name, params)
+}

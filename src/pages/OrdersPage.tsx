@@ -49,7 +49,9 @@ function OrderCard({ stored }: { stored: StoredOrder }) {
         {stored.at &&
           ` · ${new Date(stored.at).toLocaleDateString()}`}
         {order &&
-          ` — ${order.status === 'paid' ? 'Paid' : order.status}`}
+          ` — ${order.promo
+            ? 'Free'
+            : order.status === 'paid' ? 'Paid' : order.status}`}
         {order?.email ? ` · ${order.email}` : ''}
       </p>
 
