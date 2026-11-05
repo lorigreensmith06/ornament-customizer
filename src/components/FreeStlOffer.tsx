@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { API } from '../DownloadPanel'
-import { downloadOrderItem, fetchOrder, readStoredOrders, recordOrder }
-  from '../orders'
+import { downloadOrderItem, fetchOrder, markOrderPromo, readStoredOrders,
+  recordOrder } from '../orders'
 import { trackEvent } from '../analytics'
 
 type CampaignStatus = {
@@ -37,6 +37,7 @@ export default function FreeStlOffer({
   const [orderRef, setOrderRef] = useState<{ id: string; key: string } | null>(null)
   const [notice, setNotice] = useState('')
   const [warned, setWarned] = useState(false)
+  const [hasClaimed, setHasClaimed] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -76,13 +77,35 @@ export default function FreeStlOffer({
     }
   }, [camp, location])
 
+  // Detect a prior claim on this browser. Stored orders recorded before
+  // the promo marker existed are backfilled from the server's promo
+  // field — the API is the source of truth, localStorage just caches it.
+  useEffect(() => {
+    const slug = camp?.slug
+    if (!camp?.enabled || !slug) return
+    if (readStoredOrders().some((o) => o.promo === slug)) {
+      setHasClaimed(true)
+      return
+    }
+    readStoredOrders().filter((o) => !o.promo).forEach((o) => {
+      fetchOrder(o.order_id, o.key)
+        .then((detail) => {
+          if (detail.promo === slug) {
+            markOrderPromo(o.order_id, slug)
+            setHasClaimed(true)
+          }
+        })
+        .catch(() => {})
+    })
+  }, [camp])
+
   if (!camp?.enabled) return null
 
   // Hide the card entirely once this browser has claimed (returning
   // visit) or when the offer is exhausted — it only matters to eligible
   // visitors. A just-completed claim keeps its confirmation + download.
-  const storedClaim = readStoredOrders().find(
-    (o) => o.promo === camp.slug)
+  const storedClaim =
+    hasClaimed || readStoredOrders().some((o) => o.promo === camp.slug)
   const soldOut = (camp.remaining ?? 0) <= 0
 
   if (orderRef) {

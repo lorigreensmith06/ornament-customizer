@@ -73,6 +73,16 @@ export function recordOrder(orderId: string, key: string, promo?: string) {
   } catch { /* best-effort */ }
 }
 
+// Tag an already-stored order as a campaign claim — used to backfill
+// orders recorded before the promo marker existed.
+export function markOrderPromo(orderId: string, slug: string) {
+  const list = readStoredOrders().map((o) =>
+    o.order_id === orderId ? { ...o, promo: slug } : o)
+  try {
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(list))
+  } catch { /* best-effort */ }
+}
+
 // Order detail and downloads carry the access key in a header — never a
 // URL parameter — so tokens don't land in logs or browser history.
 export async function fetchOrder(orderId: string, key: string) {
