@@ -21,6 +21,8 @@ export type StoredOrder = {
   key: string
   dismissed?: boolean
   at?: number
+  // Campaign slug marks free-claim orders; paid orders never set it.
+  promo?: string
 }
 
 export function readStoredOrder(): StoredOrder | null {
@@ -60,9 +62,12 @@ export function readStoredOrders(): StoredOrder[] {
   return list
 }
 
-export function recordOrder(orderId: string, key: string) {
+export function recordOrder(orderId: string, key: string, promo?: string) {
   const list = readStoredOrders().filter((o) => o.order_id !== orderId)
-  list.unshift({ order_id: orderId, key, at: Date.now() })
+  list.unshift({
+    order_id: orderId, key, at: Date.now(),
+    ...(promo ? { promo } : {}),
+  })
   try {
     localStorage.setItem(ORDERS_KEY, JSON.stringify(list))
   } catch { /* best-effort */ }

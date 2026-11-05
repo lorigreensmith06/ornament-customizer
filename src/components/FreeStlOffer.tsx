@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { API } from '../DownloadPanel'
-import { downloadOrderItem, fetchOrder, recordOrder } from '../orders'
+import { downloadOrderItem, fetchOrder, readStoredOrders, recordOrder }
+  from '../orders'
 import { trackEvent } from '../analytics'
 
 type CampaignStatus = {
@@ -76,7 +77,39 @@ export default function FreeStlOffer({
   }, [camp, location])
 
   if (!camp?.enabled) return null
+
+  // Hide the card entirely once this browser has claimed (returning
+  // visit) or when the offer is exhausted — it only matters to eligible
+  // visitors. A just-completed claim keeps its confirmation + download.
+  const storedClaim = readStoredOrders().find(
+    (o) => o.promo === camp.slug)
   const soldOut = (camp.remaining ?? 0) <= 0
+
+  if (orderRef) {
+    return (
+      <div id="free-stl-offer" className="free-offer"
+           data-clarity-mask="true">
+        <h3 className="free-offer-title">Free STL Limited Offer</h3>
+        <p className="success-banner" role="status">
+          You've claimed your free ornament! You can download it again
+          from <Link to="/orders">My Orders</Link>.
+        </p>
+        {orderRef && (
+          <>
+            <button className="btn" onClick={download}>
+              Download STL
+            </button>
+            <FeedbackForm orderRef={orderRef} slug={camp.slug ?? ''} />
+          </>
+        )}
+        {error && (
+          <pre role="alert" className="free-offer-error">{error}</pre>
+        )}
+      </div>
+    )
+  }
+
+  if (soldOut || storedClaim) return null
 
   async function claim() {
     setError('')
@@ -123,7 +156,7 @@ export default function FreeStlOffer({
       trackEvent('claim_completed', { campaign: camp!.slug ?? '' })
       const ref = { id: data.order_id, key: data.access_token }
       setOrderRef(ref)
-      recordOrder(ref.id, ref.key)
+      recordOrder(ref.id, ref.key, camp?.slug)
       localStorage.setItem('lastOrder', JSON.stringify(
         { order_id: ref.id, key: ref.key, dismissed: false }))
       setStep('done')
@@ -154,27 +187,20 @@ export default function FreeStlOffer({
   return (
     <div id="free-stl-offer" className="free-offer" data-clarity-mask="true">
       <h3 className="free-offer-title">Help Us Test Ornament Creator!</h3>
-      {soldOut ? (
-        <p className="free-offer-text">
-          All {camp.max_claims} free downloads have been claimed. Thank
-          you for helping us test Ornament Creator!
-        </p>
-      ) : (
-        <p className="free-offer-text">
-          We're looking for {camp.max_claims} people to test our
-          personalized 3D-printable Christmas ornaments. Create your
-          own personalized snowflake, download the STL for free, and
-          let us know what you think!
-        </p>
-      )}
+      <p className="free-offer-text">
+        We're looking for {camp.max_claims} people to test our
+        personalized 3D-printable Christmas ornaments. Create your
+        own personalized snowflake, download the STL for free, and
+        let us know what you think!
+      </p>
 
-      {!soldOut && step !== 'done' && (
+      {step !== 'done' && (
         <p className="free-offer-remaining">
           {camp.remaining} of {camp.max_claims} free downloads remaining
         </p>
       )}
 
-      {step === 'idle' && !soldOut && (
+      {step === 'idle' && (
         <>
           {!stlValid && !warned && (
             <p className="free-offer-hint">
@@ -244,18 +270,6 @@ export default function FreeStlOffer({
           <button className="btn secondary" onClick={claim} disabled={busy}>
             Resend code
           </button>
-        </div>
-      )}
-
-      {step === 'done' && orderRef && (
-        <div className="free-offer-done">
-          <p className="success-banner" role="status">
-            Your free STL is ready — it's also saved in your orders.
-          </p>
-          <button className="btn" onClick={download}>
-            Download STL
-          </button>
-          <FeedbackForm orderRef={orderRef} slug={camp.slug ?? ''} />
         </div>
       )}
 
