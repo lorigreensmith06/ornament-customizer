@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export type CartItem = {
   id: string
@@ -26,17 +26,24 @@ export default function CartPanel({ items, open, onClose, onQuantity, onRemove, 
   onClose: () => void
   onQuantity: (id: string, quantity: number) => void
   onRemove: (id: string) => void
-  onCheckout: (items: CartItem[]) => Promise<void>
+  onCheckout: (items: CartItem[], digitalAck: boolean) => Promise<void>
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [ack, setAck] = useState(false)
+  const hasStl = items.some((i) => i.product === 'stl')
   const total = items.reduce(
     (sum, item) => sum + item.quantity * UNIT_PRICE[item.product], 0)
+
+  // Reset acknowledgment when STL items leave the cart entirely.
+  useEffect(() => {
+    if (!hasStl) setAck(false)
+  }, [hasStl])
 
   function checkout() {
     setBusy(true)
     setError('')
-    onCheckout(items)
+    onCheckout(items, ack)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setBusy(false))
   }
@@ -65,7 +72,8 @@ export default function CartPanel({ items, open, onClose, onQuantity, onRemove, 
                       {item.showName && item.name ? `"${item.name}"` : 'Snowflake'}
                     </span>
                     <span className="cart-item-type">
-                      {item.product === 'stl' ? 'Digital STL' : 'Printed Ornament'}
+                      {item.product === 'stl'
+                        ? 'Digital STL Download' : 'Printed Ornament'}
                       {item.product === 'printed' && ` · Qty ${item.quantity}`}
                     </span>
                   </div>
@@ -98,8 +106,29 @@ export default function CartPanel({ items, open, onClose, onQuantity, onRemove, 
             </div>
             <div className="cart-drawer-footer">
               <div className="cart-total">Total: ${total}</div>
+              {hasStl && (
+                <label className="cart-ack">
+                  <input type="checkbox" checked={ack}
+                    onChange={(e) => setAck(e.target.checked)} />
+                  <span>
+                    I understand that I'm purchasing a digital STL file,
+                    not a physical ornament.
+                  </span>
+                </label>
+              )}
+              {hasStl && !ack && (
+                <p className="cart-ack-hint">
+                  <svg viewBox="0 0 24 24" width="13" height="13"
+                    fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8v4M12 16h.01" />
+                  </svg>
+                  Please check the box above to continue to checkout.
+                </p>
+              )}
               <button type="button" className="buy-button" onClick={checkout}
-                disabled={busy || !items.length}>
+                disabled={busy || !items.length || (hasStl && !ack)}>
                 {busy ? 'Redirecting…' : `Checkout — $${total.toFixed(2)}`}
               </button>
             </div>

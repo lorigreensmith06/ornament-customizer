@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import heroImg from '../assets/ornament_main_image.png'
+import AlphabetPreview from '../components/AlphabetPreview'
+import { LazyView } from '../components/ModelThumb'
 
 const features = [
   {
@@ -67,10 +69,32 @@ export default function HomePage() {
               Create Your Ornament →
             </Link>
             <Link className="hero-cta-outline" to="/explore">
-              Explore Designs
+              Shop Ornaments
             </Link>
           </div>
         </div>
+      </section>
+
+      <section className="collection-feature">
+        <div className="collection-feature-text">
+          <p className="collection-kicker">New collection</p>
+          <h2 className="collection-title">Introducing Funky Versals</h2>
+          <p className="collection-desc">
+            Ornate alphabet ornaments, sculpted and ready to print —
+            letters A–Z plus decorative pieces. Download the STL for $3
+            or have it printed in metallic bronze PLA for $15, with free
+            U.S. shipping.
+          </p>
+          <Link className="hero-cta" to="/alphabet">
+            Shop Alphabet Ornaments →
+          </Link>
+        </div>
+        <LazyView className="collection-feature-preview">
+          <AlphabetPreview
+            file="/models/alphabet/a.glb"
+            zoom={1.1}
+          />
+        </LazyView>
       </section>
 
       <section className="features" aria-label="How it works">

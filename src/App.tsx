@@ -26,6 +26,7 @@ import Header from './components/Header'
 import { recordOrder } from './orders'
 import AboutPage from './pages/AboutPage'
 import ExplorePage from './pages/ExplorePage'
+import AlphabetPage from './pages/AlphabetPage'
 import HomePage from './pages/HomePage'
 import OrdersPage from './pages/OrdersPage'
 import PrivacyPage from './pages/PrivacyPage'
@@ -754,11 +755,44 @@ export default function App() {
     })
   }
 
-  async function checkoutCart(items: CartItem[]) {
+  // Alphabet ornaments enter the shared cart with the predesigned job
+  // id; cart_pins + checkout treat them like any job. STL items are
+  // deduped by job id (a file is a one-unit product); printed pieces
+  // support quantity.
+  function addAlphabetToCart(
+    jobId: string, name: string, previewUrl: string,
+    product: 'stl' | 'printed') {
+    setCart((prev) => {
+      const existing = prev.find(
+        (i) => i.jobId === jobId && i.product === product)
+      if (existing) {
+        return product === 'printed'
+          ? prev.map((i) => (i === existing
+              ? { ...i, quantity: Math.min(50, i.quantity + 1) }
+              : i))
+          : prev
+      }
+      return [...prev, {
+        id: crypto.randomUUID(),
+        jobId,
+        product,
+        name, selectedModel: '/models/snowflake_two_pairs.stl',
+        showName: true,
+        selectedFont: 'lato', textSize: 1,
+        downloadUrl: `${API}/api/jobs/${jobId}/download`,
+        previewUrl,
+        quantity: 1, addedAt: Date.now(),
+      }]
+    })
+    setCartOpen(true)
+  }
+
+  async function checkoutCart(items: CartItem[], digitalAck: boolean) {
     const response = await fetch(`${API}/api/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        digital_ack: digitalAck,
         items: items.map((i) => ({
           job_id: i.jobId, product: i.product, quantity: i.quantity,
           params: {
@@ -993,7 +1027,7 @@ export default function App() {
               />
 
               <small id="name-help" className="help-text">
-                24 characters max · letters, numbers, spaces, hyphens and apostrophes.
+                24 characters max · letters, numbers, and spaces only.
               </small>
 
               {name !== '' && !/[A-Z0-9]/.test(name) && (
@@ -1035,6 +1069,16 @@ export default function App() {
                   <span className="current-value">{textSize.toFixed(2)}</span>
                   <span>2.0</span>
                 </div>
+
+                {ornSize && (
+                  <p className="orn-dims">
+                    ≈ {Math.round(ornSize.x)} × {Math.round(ornSize.y)} ×{' '}
+                    {Math.round(ornSize.z)} mm&ensp;(
+                    {(ornSize.x / 25.4).toFixed(1)} ×{' '}
+                    {(ornSize.y / 25.4).toFixed(1)} ×{' '}
+                    {(ornSize.z / 25.4).toFixed(1)} in)
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -1163,6 +1207,8 @@ export default function App() {
           </div>
         } />
         <Route path="/explore" element={<ExplorePage />} />
+        <Route path="/alphabet" element={
+          <AlphabetPage onAddToCart={addAlphabetToCart} />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/returns" element={<Navigate to="/refunds" replace />} />

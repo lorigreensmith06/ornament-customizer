@@ -596,6 +596,158 @@ body {
   color: var(--text);
 }
 
+/* Approximate finished dimensions — subtle line under controls */
+.orn-dims {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ---------- Alphabet ornaments ---------- */
+
+.alphabet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 0.45rem;
+}
+
+.alphabet-decor-title {
+  margin: 1rem 0 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gold-ink);
+}
+
+/* Two-class specificity beats the generic gold .controls button rule. */
+.controls .alphabet-tile {
+  aspect-ratio: 1;
+  width: auto;
+  min-height: 0;
+  margin-top: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.controls .alphabet-tile:hover {
+  background: #fbf7ef;
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+.controls .alphabet-tile:focus-visible {
+  outline: none;
+  border-color: var(--gold-dark);
+  box-shadow: 0 0 0 3px var(--gold-10);
+}
+
+.controls .alphabet-tile.selected {
+  border-color: var(--gold-dark);
+  background: var(--gold-10);
+  color: var(--gold-ink);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.design-thumb-letter {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  color: var(--gold-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alphabet-name {
+  margin: 0 0 0.4rem;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.alphabet-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.alphabet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+/* The preview canvas fills the .preview section like the customizer. */
+.alphabet-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.alphabet-preview-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.alphabet-preview-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 700px) {
+  .alphabet-grid {
+    grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+    gap: 0.4rem;
+  }
+}
+
+/* Required digital-download acknowledgment in the cart footer */
+.cart-ack {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin: 0.55rem 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.cart-ack-hint {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: var(--gold-ink);
+}
+
+.cart-ack-hint svg {
+  flex-shrink: 0;
+}
+
+.cart-ack input[type="checkbox"] {
+  margin-top: 0.15rem;
+  accent-color: var(--gold-dark);
+}
+
 /* ---------- Cookie consent ---------- */
 
 .cookie-banner {
@@ -717,6 +869,96 @@ body {
 
 .order-card {
   margin: 0;
+}
+
+/* ---------- Collection feature (homepage) ---------- */
+
+.collection-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: center;
+  margin-top: 3rem;
+  padding: 2.25rem;
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.collection-kicker {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+}
+
+.collection-title {
+  margin: 0 0 0.6rem;
+  font-family: var(--serif);
+  font-size: 1.7rem;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.collection-desc {
+  margin: 0 0 1.4rem;
+  max-width: 38ch;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.collection-feature-preview {
+  height: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.collection-feature-preview .alphabet-viewer canvas {
+  border-radius: 12px;
+}
+
+/* ---------- Collection headings (explore) ---------- */
+
+.collection-heading {
+  margin: 1.9rem 0 0.2rem;
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+
+.collection-sub {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Live 3D thumbnails inside design cards */
+.design-thumb-3d {
+  width: 100%;
+  height: 150px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.design-thumb-3d canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+@media (max-width: 700px) {
+  .collection-feature {
+    grid-template-columns: 1fr;
+    padding: 1.4rem;
+    gap: 1.25rem;
+  }
+
+  .collection-feature-preview {
+    height: 240px;
+    order: -1;
+  }
 }
 
 /* ---------- Explore ---------- */

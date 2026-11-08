@@ -25,9 +25,14 @@ const ROUTE_META: Record<string, RouteMeta> = {
       'Personalize a snowflake ornament with your name, font, and design. Preview it live in 3D, then download the STL or order a printed ornament.',
   },
   '/explore': {
-    title: 'Explore Ornament Designs | Ornament Creator',
+    title: 'Shop Ornaments — Snowflakes & Funky Versals Letters | Ornament Creator',
     description:
-      'Browse personalized snowflake ornament designs. Every ornament is made to order with your own name in a font and style you choose.',
+      'Browse ornament collections: personalized snowflakes customized with your name, and Funky Versals alphabet ornaments ready to print or download.',
+  },
+  '/alphabet': {
+    title: 'Alphabet Letter Ornaments — Pre-Designed 3D Printable STLs | Ornament Creator',
+    description:
+      'Pre-designed Garman versal letter ornaments A–Z. Preview each letter in 3D, download the STL, or order a printed ornament shipped free in the US.',
   },
   '/about': {
     title: 'About Us | Ornament Creator',

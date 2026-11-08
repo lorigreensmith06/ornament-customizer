@@ -159,7 +159,11 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
       const { url } = await readResponse(await fetch(`${API}/api/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ job_id: generatedJobId, product }),
+        body: JSON.stringify({
+          job_id: generatedJobId, product,
+          // The explicit "Download STL" button is the acknowledgment.
+          digital_ack: true,
+        }),
       })) as { url: string }
       // Stripe Checkout is a full-page redirect; React state does not
       // survive it, so stash the artifact for the return trip.

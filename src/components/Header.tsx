@@ -36,7 +36,7 @@ export default function Header({ cartCount, onCartOpen }: {
         Create
       </NavLink>
       <NavLink to="/explore" onClick={() => setMenuOpen(false)}>
-        Explore
+        Shop Ornaments
       </NavLink>
       <NavLink to="/orders" onClick={() => setMenuOpen(false)}>
         My Orders
