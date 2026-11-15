@@ -110,12 +110,18 @@ const MM_PER_SIZE: Record<string, number> = {
 // matching the HDA's transform6/transform7 sy = 0.2 on the text bbox.
 const RAIL_HEIGHT_FRACTION = 0.2
 
-// HDA text extrusion: polyextrude1 dist 0.1 Houdini units x printer
-// scale (111.094), centered on the ornament face.
-const TEXT_DEPTH_MM = 11.1094
-// Rails run through transform_trim_and_embed_support_bars (sz = 0.5),
-// half the text depth.
-const RAIL_DEPTH_MM = TEXT_DEPTH_MM / 2
+// Measured in the Houdini output: the whole assembly is clipped at
+// the back plane (z = 0), so the centered ±0.05-unit text extrusion
+// ends up 5.55 mm deep with its back flush against the ornament.
+const TEXT_DEPTH_MM = 5.5547
+// Rails: transform_trim_and_embed_support_bars sz = 0.5, clipped the
+// same way — 0..2.777 mm, back flush.
+const RAIL_DEPTH_MM = 2.7774
+
+// Z position that puts a centered-depth box/extrusion's back face
+// flush with the ornament's back surface.
+const flushBackZ = (opening: Opening, depth: number) =>
+  opening.z - opening.depth / 2 + depth / 2
 const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   dejavu: '/fonts/DejaVuSans_Bold.json',
@@ -371,7 +377,7 @@ function NameAndRails({
           position={[
             opening.x,
             (railTop + railBottom) / 2,
-            opening.z,
+            flushBackZ(opening, TEXT_DEPTH_MM),
           ]}
           renderOrder={-1}
         >
@@ -398,7 +404,7 @@ function NameAndRails({
       {geometry && (
         <>
           <mesh
-            position={[opening.x, railTop, opening.z]}
+            position={[opening.x, railTop, flushBackZ(opening, RAIL_DEPTH_MM)]}
           >
             <boxGeometry
               args={[
@@ -412,7 +418,7 @@ function NameAndRails({
           </mesh>
 
           <mesh
-            position={[opening.x, railBottom, opening.z]}
+            position={[opening.x, railBottom, flushBackZ(opening, RAIL_DEPTH_MM)]}
           >
             <boxGeometry
               args={[
@@ -435,7 +441,7 @@ function NameAndRails({
             opening.y,
             // Anchor the text's back face to the ornament's back
             // surface; the extrusion runs forward from there.
-            opening.z - opening.depth / 2 + TEXT_DEPTH_MM / 2,
+            flushBackZ(opening, TEXT_DEPTH_MM),
           ]}
         >
           <GoldMaterial />
