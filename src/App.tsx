@@ -58,6 +58,7 @@ const outerDecorations = [
   { label: 'None', value: 'none' },
   { label: 'Diamonds', value: 'diamonds' },
   { label: 'Hexagons', value: 'hexagons' },
+  { label: 'Spheres', value: 'spheres' },
 ]
 
 const innerDecorations = [
