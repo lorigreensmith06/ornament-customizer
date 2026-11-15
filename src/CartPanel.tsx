@@ -9,6 +9,8 @@ export type CartItem = {
   showName: boolean
   selectedFont: string
   textSize: number
+  outerDecor?: string
+  innerDecor?: string
   downloadUrl: string
   previewUrl: string
   quantity: number

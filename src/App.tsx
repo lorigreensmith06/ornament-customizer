@@ -39,17 +39,42 @@ import { initAnalytics, trackPageView } from './analytics'
 const designs = [
   {
     label: 'Two Branch',
+    id: 'two_pairs',
     file: '/models/snowflake_two_pairs.stl',
   },
   {
     label: 'Three Branch',
+    id: 'three_pairs',
     file: '/models/snowflake_three_pairs.stl',
   },
   {
     label: 'Longer Branches',
+    id: 'longer_branches',
     file: '/models/snowflake_longer_branches.stl',
   },
 ]
+
+const outerDecorations = [
+  { label: 'None', value: 'none' },
+  { label: 'Diamonds', value: 'diamonds' },
+  { label: 'Hexagons', value: 'hexagons' },
+]
+
+const innerDecorations = [
+  { label: 'None', value: 'none' },
+  { label: 'Hexagons', value: 'hexagons' },
+  { label: 'Spheres', value: 'spheres' },
+]
+
+// Decoration preview STLs share the base snowflake's mm coordinate
+// frame; 'none' resolves to no extra layer. Inner decorations are
+// style-specific, outer are shared across styles.
+function decorationFiles(designId: string, outer: string, inner: string) {
+  const files: string[] = []
+  if (outer !== 'none') files.push(`/models/snowflake_outer_${outer}.stl`)
+  if (inner !== 'none') files.push(`/models/snowflake_inner_${designId}_${inner}.stl`)
+  return files
+}
 
 const fonts = [
   {
@@ -408,6 +433,7 @@ function NameAndRails({
 
 function Ornament({
   file,
+  decorFiles,
   name,
   showName,
   textSize,
@@ -415,13 +441,15 @@ function Ornament({
   onSize,
 }: {
   file: string
+  decorFiles: string[]
   name: string
   showName: boolean
   textSize: number
   selectedFont: string
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
-  const source = useLoader(STLLoader, file)
+  const sources = useLoader(STLLoader, [file, ...decorFiles])
+  const source = sources[0]
 
   const [railDims, setRailDims] = useState<{
     width: number
@@ -444,7 +472,7 @@ function Ornament({
     [],
   )
 
-  const { geometry, opening } = useMemo(() => {
+  const { geometry, decorGeometries, opening } = useMemo(() => {
     // Do not center or otherwise mutate useLoader's cached STL.
     const opening = measureOpening(source)
 
@@ -453,11 +481,18 @@ function Ornament({
 
     geometry.computeBoundingBox()
 
+    const decorGeometries = sources.slice(1).map((decor) => {
+      const g = toCreasedNormals(decor.clone(), Math.PI / 3)
+      g.computeBoundingBox()
+      return g
+    })
+
     return {
       geometry,
+      decorGeometries,
       opening,
     }
-  }, [source])
+  }, [sources, source])
 
   // STL coordinates are millimeters; union the snowflake bbox with the
   // rail boxes for the approximate finished size.
@@ -468,6 +503,14 @@ function Ornament({
     let maxX = bounds.max.x
     let minY = bounds.min.y
     let maxY = bounds.max.y
+
+    for (const decor of decorGeometries) {
+      const b = decor.boundingBox!
+      minX = Math.min(minX, b.min.x)
+      maxX = Math.max(maxX, b.max.x)
+      minY = Math.min(minY, b.min.y)
+      maxY = Math.max(maxY, b.max.y)
+    }
 
     if (showName && railDims) {
       const halfWidth = railDims.width / 2
@@ -483,11 +526,14 @@ function Ornament({
       y: maxY - minY,
       z: bounds.max.z - bounds.min.z,
     })
-  }, [geometry, opening, showName, railDims, onSize])
+  }, [geometry, decorGeometries, opening, showName, railDims, onSize])
 
   useEffect(() => {
-    return () => geometry.dispose()
-  }, [geometry])
+    return () => {
+      geometry.dispose()
+      for (const decor of decorGeometries) decor.dispose()
+    }
+  }, [geometry, decorGeometries])
 
   return (
     <group scale={0.05}>
@@ -511,6 +557,12 @@ function Ornament({
             stencilFuncMask={0xff}
           />
         </mesh>
+
+        {decorGeometries.map((decor, index) => (
+          <mesh key={index} geometry={decor} renderOrder={1}>
+            <GoldMaterial />
+          </mesh>
+        ))}
 
         {showName && (
           <Suspense fallback={null}>
@@ -626,6 +678,12 @@ export default function App() {
   const [textSize, setTextSize] =
     useState(1.0)
 
+  const [outerDecor, setOuterDecor] =
+    useState('none')
+
+  const [innerDecor, setInnerDecor] =
+    useState('none')
+
   useEffect(() => {
     if (requestedDesign
         && designs.some((design) => design.file === requestedDesign)) {
@@ -637,7 +695,12 @@ export default function App() {
 
   const paramsKey = JSON.stringify({
     name, selectedModel, showName, selectedFont, textSize,
+    outerDecor, innerDecor,
   })
+
+  const selectedDesign = designs.find((d) => d.file === selectedModel)
+    ?? designs[0]
+  const decorFiles = decorationFiles(selectedDesign.id, outerDecor, innerDecor)
 
   const [generatedGeom, setGeneratedGeom] =
     useState<BufferGeometry | null>(null)
@@ -749,6 +812,7 @@ export default function App() {
         jobId: generatedJobId,
         product,
         name, selectedModel, showName, selectedFont, textSize,
+        outerDecor, innerDecor,
         downloadUrl, previewUrl: generatedPreview,
         quantity: 1, addedAt: Date.now(),
       }]
@@ -799,6 +863,7 @@ export default function App() {
             name: i.showName ? i.name : '', design: i.selectedModel,
             font: i.selectedFont, fontSize: i.textSize,
             showName: i.showName,
+            outerDecoration: i.outerDecor, innerDecoration: i.innerDecor,
           },
         })),
       }),
@@ -817,10 +882,12 @@ export default function App() {
         showName: item.showName, selectedFont: item.selectedFont,
         textSize: item.textSize, url: item.downloadUrl,
         preview: item.previewUrl, job: item.jobId, product: item.product,
+        outerDecor: item.outerDecor, innerDecor: item.innerDecor,
         key: JSON.stringify({
           name: item.name, selectedModel: item.selectedModel,
           showName: item.showName, selectedFont: item.selectedFont,
           textSize: item.textSize,
+          outerDecor: item.outerDecor, innerDecor: item.innerDecor,
         }),
       }))
     } else {
@@ -860,7 +927,8 @@ export default function App() {
   useEffect(() => {
     generatedLoad.current++
     setViewGenerated(false)
-  }, [name, selectedModel, showName, selectedFont, textSize])
+  }, [name, selectedModel, showName, selectedFont, textSize,
+      outerDecor, innerDecor])
 
   // Returning from Stripe Checkout is a fresh page load: verify the
   // session server-side, then restore the purchased artifact from the
@@ -922,6 +990,8 @@ export default function App() {
         setShowName(s.showName)
         setSelectedFont(s.selectedFont)
         setTextSize(s.textSize)
+        setOuterDecor(s.outerDecor ?? 'none')
+        setInnerDecor(s.innerDecor ?? 'none')
         setDownloadUrl(s.url)
         // Only an 'stl' purchase unlocks the download. A paid 'printed'
         // order confirms separately and leaves the STL gated.
@@ -989,6 +1059,32 @@ export default function App() {
             {designs.map((design) => (
               <option key={design.file} value={design.file}>
                 {design.label}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="outer-decor">Outer decorations</label>
+          <select
+            id="outer-decor"
+            value={outerDecor}
+            onChange={(event) => setOuterDecor(event.target.value)}
+          >
+            {outerDecorations.map((decor) => (
+              <option key={decor.value} value={decor.value}>
+                {decor.label}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="inner-decor">Inner decorations</label>
+          <select
+            id="inner-decor"
+            value={innerDecor}
+            onChange={(event) => setInnerDecor(event.target.value)}
+          >
+            {innerDecorations.map((decor) => (
+              <option key={decor.value} value={decor.value}>
+                {decor.label}
               </option>
             ))}
           </select>
@@ -1094,6 +1190,8 @@ export default function App() {
           showName={showName}
           selectedFont={selectedFont}
           textSize={textSize}
+          outerDecoration={outerDecor}
+          innerDecoration={innerDecor}
           downloadUrl={downloadUrl}
           stlValid={stlValid}
           paid={downloadUrl != null && downloadUrl === paidUrl}
@@ -1188,6 +1286,7 @@ export default function App() {
               ) : (
                 <Ornament
                   file={selectedModel}
+                  decorFiles={decorFiles}
                   name={name}
                   showName={showName}
                   textSize={textSize}
