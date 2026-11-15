@@ -1,7 +1,7 @@
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useLoader } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { OrbitControls, RoundedBox } from '@react-three/drei'
 import { Vector3 } from 'three'
 import {
   ACESFilmicToneMapping,
@@ -405,33 +405,23 @@ function NameAndRails({
 
       {geometry && (
         <>
-          <mesh
+          <RoundedBox
+            args={[railWidth, barHeight, RAIL_DEPTH_MM]}
+            radius={barHeight / 4}
+            smoothness={8}
             position={[opening.x, railTop, flushBackZ(opening, RAIL_DEPTH_MM)]}
           >
-            <boxGeometry
-              args={[
-                railWidth,
-                barHeight,
-                RAIL_DEPTH_MM,
-              ]}
-            />
-
             <GoldMaterial />
-          </mesh>
+          </RoundedBox>
 
-          <mesh
+          <RoundedBox
+            args={[railWidth, barHeight, RAIL_DEPTH_MM]}
+            radius={barHeight / 4}
+            smoothness={8}
             position={[opening.x, railBottom, flushBackZ(opening, RAIL_DEPTH_MM)]}
           >
-            <boxGeometry
-              args={[
-                railWidth,
-                barHeight,
-                RAIL_DEPTH_MM,
-              ]}
-            />
-
             <GoldMaterial />
-          </mesh>
+          </RoundedBox>
         </>
       )}
 
