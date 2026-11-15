@@ -269,7 +269,7 @@ function NameAndRails({
   // Use the selected font for preview
   const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
 
-  const { geometry, railWidth, railTop, railBottom, clippingWidth, clippingHeight, barHeight } = useMemo(() => {
+  const { geometry, railWidth, railTop, railBottom, textTop, textBottom, clippingWidth, clippingHeight, barHeight } = useMemo(() => {
     const text = name.trim()
 
     // Houdini's rule: rails are at least 75% of the snowflake width.
@@ -281,6 +281,8 @@ function NameAndRails({
         railWidth: minimumRailWidth,
         railTop: opening.top,
         railBottom: opening.bottom,
+        textTop: opening.top,
+        textBottom: opening.bottom,
         clippingWidth: opening.width,
         clippingHeight: 0,
         barHeight: opening.barHeight,
@@ -307,6 +309,8 @@ function NameAndRails({
         railWidth: minimumRailWidth,
         railTop: opening.top,
         railBottom: opening.bottom,
+        textTop: opening.top,
+        textBottom: opening.bottom,
         clippingWidth: opening.width,
         clippingHeight: 0,
         barHeight: opening.barHeight,
@@ -379,11 +383,22 @@ function NameAndRails({
       -boundsCenter.z,
     )
 
+    // Recompute the bbox after centering so we know the text's
+    // exact vertical extent in world coordinates. The stencil mask
+    // will cover only this region (plus a small margin) instead of
+    // the full rail band, so snowflake branches remain visible
+    // inside the rail volumes and visually intersect them.
+    result.computeBoundingBox()
+    const textTop = opening.y + result.boundingBox!.max.y
+    const textBottom = opening.y + result.boundingBox!.min.y
+
     return {
       geometry: result,
       railWidth,
       railTop,
       railBottom,
+      textTop,
+      textBottom,
       clippingWidth,
       clippingHeight,
       barHeight,
@@ -410,7 +425,7 @@ function NameAndRails({
         <mesh
           position={[
             opening.x,
-            (railTop + railBottom) / 2,
+            (textTop + textBottom) / 2,
             opening.z,
           ]}
           renderOrder={-1}
@@ -418,11 +433,13 @@ function NameAndRails({
           <boxGeometry
             args={[
               clippingWidth,
-              (railTop + barHeight / 2) - (railBottom - barHeight / 2),
-              // Covers the snowflake (z 0..~2.9) and the deepest decorator
-              // layer (outer hexagons reach z~3.6) without extending far
-              // in front of the rails, which caused a stencil projection
-              // strip above the text in angled views.
+              // Cover only the text extent (plus a small margin) so
+              // snowflake branches remain visible inside the rail
+              // volumes and visually intersect the rails. The mask
+              // depth still covers the snowflake and deepest
+              // decorator layer without extending far in front of
+              // the rails (the white-strip fix).
+              (textTop + 0.1) - (textBottom - 0.1),
               opening.depth * 1.5,
             ]}
           />
