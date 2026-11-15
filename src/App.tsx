@@ -377,7 +377,7 @@ function NameAndRails({
           position={[
             opening.x,
             (railTop + railBottom) / 2,
-            flushBackZ(opening, TEXT_DEPTH_MM),
+            opening.z,
           ]}
           renderOrder={-1}
         >
@@ -385,7 +385,7 @@ function NameAndRails({
             args={[
               clippingWidth,
               (railTop + barHeight / 2) - (railBottom - barHeight / 2),
-              TEXT_DEPTH_MM,
+              opening.depth * 4,
             ]}
           />
           <meshBasicMaterial
