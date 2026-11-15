@@ -336,9 +336,32 @@ function NameAndRails({
 
     const railWidth = Math.max(minimumRailWidth, textWidth)
 
-    // Position rails based on actual text height with padding
-    const railTop = opening.y + textHeight / 2 + verticalPadding
-    const railBottom = opening.y - textHeight / 2 - verticalPadding
+    // Rails follow the capital-letter band (baseline to cap height,
+    // measured from an "H" in the same font), not the whole string's
+    // bounds: a descender such as Q's tail would otherwise push the
+    // bottom rail away from every other letter.
+    const capProbe = new TextGeometry('H', {
+      font,
+      size: 1,
+      depth: 1,
+      curveSegments: 1,
+      bevelEnabled: false,
+    })
+
+    capProbe.computeBoundingBox()
+
+    const capBottom = capProbe.boundingBox!.min.y * finalScale
+    const capTop = capProbe.boundingBox!.max.y * finalScale
+
+    capProbe.dispose()
+
+    const hasCapBand = capTop > capBottom
+    const bandBottom = hasCapBand ? capBottom : result.boundingBox!.min.y
+    const bandTop = hasCapBand ? capTop : result.boundingBox!.max.y
+    const bandHeight = bandTop - bandBottom
+
+    const railTop = opening.y + bandHeight / 2 + verticalPadding
+    const railBottom = opening.y - bandHeight / 2 - verticalPadding
 
     // Clip the snowflake only where the text itself lives. The rail
     // band keeps its snowflake so it intersects the rails for a
@@ -346,7 +369,15 @@ function NameAndRails({
     const clippingWidth = railWidth
     const clippingHeight = textHeight
 
-    result.center()
+    // Center horizontally and in depth on the text's own bounds, and
+    // vertically on the capital band the rails were placed from.
+    const boundsCenter = result.boundingBox!.getCenter(new Vector3())
+
+    result.translate(
+      -boundsCenter.x,
+      -(bandTop + bandBottom) / 2,
+      -boundsCenter.z,
+    )
 
     return {
       geometry: result,
@@ -388,7 +419,11 @@ function NameAndRails({
             args={[
               clippingWidth,
               (railTop + barHeight / 2) - (railBottom - barHeight / 2),
-              opening.depth * 4,
+              // Covers the snowflake (z 0..~2.9) and the deepest decorator
+              // layer (outer hexagons reach z~3.6) without extending far
+              // in front of the rails, which caused a stencil projection
+              // strip above the text in angled views.
+              opening.depth * 1.5,
             ]}
           />
           <meshBasicMaterial
