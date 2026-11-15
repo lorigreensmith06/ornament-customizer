@@ -111,8 +111,11 @@ const MM_PER_SIZE: Record<string, number> = {
 const RAIL_HEIGHT_FRACTION = 0.2
 
 // HDA text extrusion: polyextrude1 dist 0.1 Houdini units x printer
-// scale (111.094), centered on the ornament face. Rails share this depth.
+// scale (111.094), centered on the ornament face.
 const TEXT_DEPTH_MM = 11.1094
+// Rails run through transform_trim_and_embed_support_bars (sz = 0.5),
+// half the text depth.
+const RAIL_DEPTH_MM = TEXT_DEPTH_MM / 2
 const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   dejavu: '/fonts/DejaVuSans_Bold.json',
@@ -401,7 +404,7 @@ function NameAndRails({
               args={[
                 railWidth,
                 barHeight,
-                TEXT_DEPTH_MM,
+                RAIL_DEPTH_MM,
               ]}
             />
 
@@ -415,7 +418,7 @@ function NameAndRails({
               args={[
                 railWidth,
                 barHeight,
-                TEXT_DEPTH_MM,
+                RAIL_DEPTH_MM,
               ]}
             />
 
