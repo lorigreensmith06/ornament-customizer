@@ -561,7 +561,15 @@ function Ornament({
 
         {decorGeometries.map((decor, index) => (
           <mesh key={index} geometry={decor} renderOrder={1}>
-            <GoldMaterial />
+            <meshStandardMaterial
+              color="#c6a15b"
+              metalness={0.7}
+              roughness={0.3}
+              stencilWrite
+              stencilFunc={NotEqualStencilFunc}
+              stencilRef={1}
+              stencilFuncMask={0xff}
+            />
           </mesh>
         ))}
 
