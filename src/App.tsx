@@ -248,7 +248,7 @@ function GoldMaterial() {
     <meshStandardMaterial
       color="#c6a15b"
       metalness={0.7}
-      roughness={0.3}
+      roughness={0.4}
     />
   )
 }
@@ -572,7 +572,7 @@ function Ornament({
           <meshStandardMaterial
             color="#c6a15b"
             metalness={0.7}
-            roughness={0.3}
+            roughness={0.4}
             stencilWrite
             stencilFunc={NotEqualStencilFunc}
             stencilRef={1}
@@ -585,7 +585,7 @@ function Ornament({
             <meshStandardMaterial
               color="#c6a15b"
               metalness={0.7}
-              roughness={0.3}
+              roughness={0.4}
               stencilWrite
               stencilFunc={NotEqualStencilFunc}
               stencilRef={1}
@@ -1304,7 +1304,7 @@ export default function App() {
 
             <directionalLight
               position={[3, 4, 6]}
-              intensity={3}
+              intensity={2}
             />
 
             <directionalLight
