@@ -433,7 +433,9 @@ function NameAndRails({
           position={[
             opening.x,
             opening.y,
-            opening.z,
+            // Anchor the text's back face to the ornament's back
+            // surface; the extrusion runs forward from there.
+            opening.z - opening.depth / 2 + TEXT_DEPTH_MM / 2,
           ]}
         >
           <GoldMaterial />
