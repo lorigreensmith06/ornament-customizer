@@ -109,6 +109,10 @@ const MM_PER_SIZE: Record<string, number> = {
 // Rail thickness as a fraction of the rendered text height,
 // matching the HDA's transform6/transform7 sy = 0.2 on the text bbox.
 const RAIL_HEIGHT_FRACTION = 0.2
+
+// HDA text extrusion: polyextrude1 dist 0.1 Houdini units x printer
+// scale (111.094), centered on the ornament face. Rails share this depth.
+const TEXT_DEPTH_MM = 11.1094
 const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   dejavu: '/fonts/DejaVuSans_Bold.json',
@@ -275,7 +279,7 @@ function NameAndRails({
     const result = new TextGeometry(text, {
       font,
       size: 1,
-      depth: opening.depth,
+      depth: TEXT_DEPTH_MM,
       curveSegments: 12,
       bevelEnabled: false,
     })
@@ -372,7 +376,7 @@ function NameAndRails({
             args={[
               clippingWidth,
               (railTop + barHeight / 2) - (railBottom - barHeight / 2),
-              opening.depth,
+              TEXT_DEPTH_MM,
             ]}
           />
           <meshBasicMaterial
@@ -397,7 +401,7 @@ function NameAndRails({
               args={[
                 railWidth,
                 barHeight,
-                opening.depth,
+                TEXT_DEPTH_MM,
               ]}
             />
 
@@ -411,7 +415,7 @@ function NameAndRails({
               args={[
                 railWidth,
                 barHeight,
-                opening.depth,
+                TEXT_DEPTH_MM,
               ]}
             />
 
