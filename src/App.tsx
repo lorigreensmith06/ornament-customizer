@@ -292,13 +292,7 @@ function NameAndRails({
       size: 1,
       depth: TEXT_DEPTH_MM,
       curveSegments: 12,
-      // Small edge bevel matching Houdini's polybevel_font (~0.11 mm
-      // at print scale): rounds letter edges so the extrusion walls
-      // don't render as hard flat faces.
-      bevelEnabled: true,
-      bevelThickness: 0.15,
-      bevelSize: 0.1,
-      bevelSegments: 3,
+      bevelEnabled: false,
     })
 
     result.computeBoundingBox()
@@ -335,9 +329,10 @@ function NameAndRails({
     // HDA rule: rail thickness = 0.2 x rendered text bbox height.
     const barHeight = textHeight * RAIL_HEIGHT_FRACTION
 
-    // Same clearance between text and rail centers as the original opening.
-    // At textSize = 1 this puts the rails exactly at opening.top/bottom.
-    const verticalPadding = (opening.gap - opening.textHeight) / 2
+    // Small overlap so letter tops/bottoms visibly intersect the rails,
+    // matching the generated STL where text and rails are boole'd
+    // together. At textSize = 1 this keeps rails near opening.top/bottom.
+    const verticalPadding = barHeight / 4
 
     const railWidth = Math.max(minimumRailWidth, textWidth)
 
