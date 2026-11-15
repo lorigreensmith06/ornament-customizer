@@ -4,6 +4,7 @@ import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { Vector3 } from 'three'
 import {
+  ACESFilmicToneMapping,
   AlwaysStencilFunc,
   KeepStencilOp,
   NotEqualStencilFunc,
@@ -57,14 +58,14 @@ const designs = [
 const outerDecorations = [
   { label: 'None', value: 'none' },
   { label: 'Diamonds', value: 'diamonds' },
-  { label: 'Hexagons', value: 'hexagons' },
-  { label: 'Spheres', value: 'spheres' },
+  { label: 'Gems', value: 'hexagons' },
+  { label: 'Beads', value: 'spheres' },
 ]
 
 const innerDecorations = [
   { label: 'None', value: 'none' },
-  { label: 'Hexagons', value: 'hexagons' },
-  { label: 'Spheres', value: 'spheres' },
+  { label: 'Gems', value: 'hexagons' },
+  { label: 'Beads', value: 'spheres' },
 ]
 
 // Decoration preview STLs share the base snowflake's mm coordinate
@@ -119,9 +120,10 @@ const TEXT_DEPTH_MM = 5.5547
 const RAIL_DEPTH_MM = 2.7774
 
 // Z position that puts a centered-depth box/extrusion's back face
-// flush with the ornament's back surface.
+// essentially flush with the ornament's back surface. The tiny inset
+// avoids coplanar z-fighting with the ornament's own back plane.
 const flushBackZ = (opening: Opening, depth: number) =>
-  opening.z - opening.depth / 2 + depth / 2
+  opening.z - opening.depth / 2 + depth / 2 - 0.02
 const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   dejavu: '/fonts/DejaVuSans_Bold.json',
@@ -1091,7 +1093,7 @@ export default function App() {
             ))}
           </select>
 
-          <label htmlFor="outer-decor">Outer decorations</label>
+          <label htmlFor="outer-decor">Branch Tips</label>
           <select
             id="outer-decor"
             value={outerDecor}
@@ -1104,7 +1106,7 @@ export default function App() {
             ))}
           </select>
 
-          <label htmlFor="inner-decor">Inner decorations</label>
+          <label htmlFor="inner-decor">Branch Accents</label>
           <select
             id="inner-decor"
             value={innerDecor}
@@ -1286,7 +1288,12 @@ export default function App() {
               position: [0, 0, 9],
               fov: 40,
             }}
-            gl={{ stencil: true }}
+            gl={{
+              stencil: true,
+              // Compress metallic specular highlights so facets facing
+              // the key light don't clip to white.
+              toneMapping: ACESFilmicToneMapping,
+            }}
           >
             <color
               attach="background"
