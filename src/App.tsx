@@ -361,13 +361,17 @@ function NameAndRails({
           renderOrder and produces no color or depth output. */}
       {geometry && (
         <mesh
-          position={[opening.x, opening.y, opening.z]}
+          position={[
+            opening.x,
+            (railTop + railBottom) / 2,
+            opening.z,
+          ]}
           renderOrder={-1}
         >
           <boxGeometry
             args={[
               clippingWidth,
-              clippingHeight,
+              (railTop + barHeight / 2) - (railBottom - barHeight / 2),
               opening.depth,
             ]}
           />
