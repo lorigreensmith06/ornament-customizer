@@ -292,7 +292,13 @@ function NameAndRails({
       size: 1,
       depth: TEXT_DEPTH_MM,
       curveSegments: 12,
-      bevelEnabled: false,
+      // Small edge bevel matching Houdini's polybevel_font (~0.11 mm
+      // at print scale): rounds letter edges so the extrusion walls
+      // don't render as hard flat faces.
+      bevelEnabled: true,
+      bevelThickness: 0.15,
+      bevelSize: 0.1,
+      bevelSegments: 3,
     })
 
     result.computeBoundingBox()
