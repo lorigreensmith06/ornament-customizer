@@ -665,7 +665,7 @@ export default function App() {
   }, [pathname])
   const requestedDesign = searchParams.get('design')
   const [selectedModel, setSelectedModel] =
-    useState(designs[0].file)
+    useState(designs[1].file)
 
   const [showName, setShowName] =
     useState(true)
@@ -680,7 +680,7 @@ export default function App() {
     useState(1.0)
 
   const [outerDecor, setOuterDecor] =
-    useState('none')
+    useState('diamonds')
 
   const [innerDecor, setInnerDecor] =
     useState('none')
