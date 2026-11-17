@@ -553,15 +553,14 @@ function Ornament({
     const overlap = railDims.bar / 4
     const topBand = world(railDims.top - overlap)
     const bottomBand = world(railDims.bottom + overlap)
-    // Rail endpoints, pulled a half-bar inward so straddling
-    // geometry is cut deeper inside the rail end and concealed
-    // (beads protrude past the rail's front face, so a quarter-bar
-    // was not enough to hide their sliced edges).
+    // Rail endpoints, extended a half-bar outward so no band-height
+    // geometry survives inside the rail ends (the base protrudes past
+    // the rail front face, so an inward sliver stays visible).
     const overlapX = railDims.bar / 2
     const leftEdge =
-      worldX(opening.x) + 0.05 * (overlapX - railDims.width / 2)
+      worldX(opening.x) + 0.05 * (-overlapX - railDims.width / 2)
     const rightEdge =
-      worldX(opening.x) + 0.05 * (railDims.width / 2 - overlapX)
+      worldX(opening.x) + 0.05 * (railDims.width / 2 + overlapX)
     const regions = (top: number, bottom: number): Plane[][] => [
       [new Plane(new Vector3(0, 1, 0), -top)], // above top rail
       [new Plane(new Vector3(0, -1, 0), bottom)], // below bottom rail
