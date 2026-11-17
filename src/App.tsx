@@ -271,8 +271,8 @@ function NameAndRails({
   const { geometry, railWidth, railTop, railBottom, barHeight } = useMemo(() => {
     const text = name.trim()
 
-    // Houdini's rule: rails are at least 78% of the snowflake width.
-    const minimumRailWidth = opening.ornamentWidth * 0.78
+    // Houdini's rule: rails are at least 80% of the snowflake width.
+    const minimumRailWidth = opening.ornamentWidth * 0.80
 
     if (!text) {
       return {
@@ -324,10 +324,10 @@ function NameAndRails({
     // HDA rule: rail thickness = 0.2 x rendered text bbox height.
     const barHeight = textHeight * RAIL_HEIGHT_FRACTION
 
-    // Small overlap so letter tops/bottoms visibly intersect the rails,
-    // matching the generated STL where text and rails are boole'd
-    // together. At textSize = 1 this keeps rails near opening.top/bottom.
-    const verticalPadding = barHeight / 8
+    // Rails centered on the capital band edges: letter tops/bottoms
+    // overlap the rail inner faces, matching the generated STL where
+    // text and rails are boole'd together.
+    const verticalPadding = 0
 
     const railWidth = Math.max(minimumRailWidth, textWidth)
 
