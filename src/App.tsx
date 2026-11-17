@@ -553,11 +553,6 @@ function Ornament({
     const overlap = railDims.bar / 4
     const topBand = world(railDims.top - overlap)
     const bottomBand = world(railDims.bottom + overlap)
-    // Decorators sit in front of the rails, so an in-rail boundary
-    // can't hide their cut ends; clip them at the outer rail edges
-    // so the flat cut lands flush on the rail surface.
-    const topDecorBand = world(railDims.top + railDims.bar / 2)
-    const bottomDecorBand = world(railDims.bottom - railDims.bar / 2)
     // Rail endpoints, pulled a half-bar inward so straddling
     // geometry is cut deeper inside the rail end and concealed
     // (beads protrude past the rail's front face, so a quarter-bar
@@ -583,7 +578,13 @@ function Ornament({
     ]
     return {
       basePlanes: regions(topBand, bottomBand),
-      decorPlanes: regions(topDecorBand, bottomDecorBand),
+      // Decorators are clipped in Y across the full width, so beads
+      // intersecting the rails are cut at the same in-rail boundary
+      // even when they extend past the rail endpoints.
+      decorPlanes: [
+        [new Plane(new Vector3(0, 1, 0), -topBand)],
+        [new Plane(new Vector3(0, -1, 0), bottomBand)],
+      ],
     }
   }, [railDims, showName, opening])
 
