@@ -536,39 +536,54 @@ function Ornament({
     }
   }, [geometry, decorGeometries])
 
-  // Clear the base snowflake between the rails so it doesn't show
-  // behind the name: two world-space clipping planes keep geometry
-  // above the upper rail and below the lower rail. Each boundary sits
-  // a quarter of the rail thickness inside the rail so the clipped
-  // ends stay hidden behind the bar.
-  const { upperClip, lowerClip, upperDecorClip, lowerDecorClip } =
-    useMemo(() => {
+  // Clear the base snowflake and decorators inside the rectangular
+  // rail region behind the name. Infinite planes only intersect, so
+  // the kept region is a union rendered as four instances: above the
+  // top rail, below the bottom rail, and the left/right strips beside
+  // the rails inside the band. Every boundary sits a quarter of the
+  // rail thickness inside the rail so clipped ends stay hidden.
+  const { basePlanes, decorPlanes } = useMemo(() => {
     if (!railDims || !showName) {
-      return {
-        upperClip: null,
-        lowerClip: null,
-        upperDecorClip: null,
-        lowerDecorClip: null,
-      }
+      return { basePlanes: null, decorPlanes: null }
     }
     // The ornament group renders at scale 0.05 and is re-centered on
     // the opening, so convert the rail bounds into world space.
-    const topWorld =
-      0.05 * (railDims.top - railDims.bar / 4 - opening.center.y)
-    const bottomWorld =
-      0.05 * (railDims.bottom + railDims.bar / 4 - opening.center.y)
+    const world = (v: number) => 0.05 * (v - opening.center.y)
+    const worldX = (v: number) => 0.05 * (v - opening.center.x)
+    const overlap = railDims.bar / 4
+    const topBand = world(railDims.top - overlap)
+    const bottomBand = world(railDims.bottom + overlap)
     // Decorators sit in front of the rails, so an in-rail boundary
-    // can't hide their cut ends. Clip them at the outer rail edges
-    // instead: the flat cut lands flush on the rail surface.
-    const topDecorWorld =
-      0.05 * (railDims.top + railDims.bar / 2 - opening.center.y)
-    const bottomDecorWorld =
-      0.05 * (railDims.bottom - railDims.bar / 2 - opening.center.y)
+    // can't hide their cut ends; clip them at the outer rail edges
+    // so the flat cut lands flush on the rail surface.
+    const topDecorBand = world(railDims.top + railDims.bar / 2)
+    const bottomDecorBand = world(railDims.bottom - railDims.bar / 2)
+    // Rail endpoints, pulled a half-bar inward so straddling
+    // geometry is cut deeper inside the rail end and concealed
+    // (beads protrude past the rail's front face, so a quarter-bar
+    // was not enough to hide their sliced edges).
+    const overlapX = railDims.bar / 2
+    const leftEdge =
+      worldX(opening.x) + 0.05 * (overlapX - railDims.width / 2)
+    const rightEdge =
+      worldX(opening.x) + 0.05 * (railDims.width / 2 - overlapX)
+    const regions = (top: number, bottom: number): Plane[][] => [
+      [new Plane(new Vector3(0, 1, 0), -top)], // above top rail
+      [new Plane(new Vector3(0, -1, 0), bottom)], // below bottom rail
+      [
+        new Plane(new Vector3(-1, 0, 0), leftEdge),
+        new Plane(new Vector3(0, -1, 0), top),
+        new Plane(new Vector3(0, 1, 0), -bottom),
+      ], // strip left of the rails
+      [
+        new Plane(new Vector3(1, 0, 0), -rightEdge),
+        new Plane(new Vector3(0, -1, 0), top),
+        new Plane(new Vector3(0, 1, 0), -bottom),
+      ], // strip right of the rails
+    ]
     return {
-      upperClip: new Plane(new Vector3(0, 1, 0), -topWorld),
-      lowerClip: new Plane(new Vector3(0, -1, 0), bottomWorld),
-      upperDecorClip: new Plane(new Vector3(0, 1, 0), -topDecorWorld),
-      lowerDecorClip: new Plane(new Vector3(0, -1, 0), bottomDecorWorld),
+      basePlanes: regions(topBand, bottomBand),
+      decorPlanes: regions(topDecorBand, bottomDecorBand),
     }
   }, [railDims, showName, opening])
 
@@ -587,46 +602,34 @@ function Ornament({
           -opening.center.z,
         ]}
       >
-        {upperClip && lowerClip ? (
-          <>
-            {/* Base above the upper rail */}
-            <mesh geometry={geometry}>
+        {/* One instance per kept region; the regions partition the
+            model exactly so there is no overlap or z-fighting. */}
+        {basePlanes ? (
+          basePlanes.map((planes, i) => (
+            <mesh key={i} geometry={geometry}>
               <meshStandardMaterial
                 {...goldProps}
-                clippingPlanes={[upperClip]}
+                clippingPlanes={planes}
               />
             </mesh>
-            {/* Base below the lower rail */}
-            <mesh geometry={geometry}>
-              <meshStandardMaterial
-                {...goldProps}
-                clippingPlanes={[lowerClip]}
-              />
-            </mesh>
-          </>
+          ))
         ) : (
           <mesh geometry={geometry}>
             <meshStandardMaterial {...goldProps} />
           </mesh>
         )}
 
-        {/* Decorators render as two instances clipped at the outer
-            rail edges so no cut stubs remain in front of the rails. */}
         {decorGeometries.map((decor, index) =>
-          upperDecorClip && lowerDecorClip ? (
+          decorPlanes ? (
             <Fragment key={index}>
-              <mesh geometry={decor}>
-                <meshStandardMaterial
-                  {...goldProps}
-                  clippingPlanes={[upperDecorClip]}
-                />
-              </mesh>
-              <mesh geometry={decor}>
-                <meshStandardMaterial
-                  {...goldProps}
-                  clippingPlanes={[lowerDecorClip]}
-                />
-              </mesh>
+              {decorPlanes.map((planes, i) => (
+                <mesh key={i} geometry={decor}>
+                  <meshStandardMaterial
+                    {...goldProps}
+                    clippingPlanes={planes}
+                  />
+                </mesh>
+              ))}
             </Fragment>
           ) : (
             <mesh key={index} geometry={decor}>
