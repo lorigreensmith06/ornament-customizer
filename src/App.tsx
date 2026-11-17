@@ -1,4 +1,4 @@
-import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls, RoundedBox } from '@react-three/drei'
@@ -541,17 +541,34 @@ function Ornament({
   // above the upper rail and below the lower rail. Each boundary sits
   // a quarter of the rail thickness inside the rail so the clipped
   // ends stay hidden behind the bar.
-  const { upperClip, lowerClip } = useMemo(() => {
-    if (!railDims || !showName) return { upperClip: null, lowerClip: null }
+  const { upperClip, lowerClip, upperDecorClip, lowerDecorClip } =
+    useMemo(() => {
+    if (!railDims || !showName) {
+      return {
+        upperClip: null,
+        lowerClip: null,
+        upperDecorClip: null,
+        lowerDecorClip: null,
+      }
+    }
     // The ornament group renders at scale 0.05 and is re-centered on
     // the opening, so convert the rail bounds into world space.
     const topWorld =
       0.05 * (railDims.top - railDims.bar / 4 - opening.center.y)
     const bottomWorld =
       0.05 * (railDims.bottom + railDims.bar / 4 - opening.center.y)
+    // Decorators sit in front of the rails, so an in-rail boundary
+    // can't hide their cut ends. Clip them at the outer rail edges
+    // instead: the flat cut lands flush on the rail surface.
+    const topDecorWorld =
+      0.05 * (railDims.top + railDims.bar / 2 - opening.center.y)
+    const bottomDecorWorld =
+      0.05 * (railDims.bottom - railDims.bar / 2 - opening.center.y)
     return {
       upperClip: new Plane(new Vector3(0, 1, 0), -topWorld),
       lowerClip: new Plane(new Vector3(0, -1, 0), bottomWorld),
+      upperDecorClip: new Plane(new Vector3(0, 1, 0), -topDecorWorld),
+      lowerDecorClip: new Plane(new Vector3(0, -1, 0), bottomDecorWorld),
     }
   }, [railDims, showName, opening])
 
@@ -593,11 +610,30 @@ function Ornament({
           </mesh>
         )}
 
-        {decorGeometries.map((decor, index) => (
-          <mesh key={index} geometry={decor}>
-            <meshStandardMaterial {...goldProps} />
-          </mesh>
-        ))}
+        {/* Decorators render as two instances clipped at the outer
+            rail edges so no cut stubs remain in front of the rails. */}
+        {decorGeometries.map((decor, index) =>
+          upperDecorClip && lowerDecorClip ? (
+            <Fragment key={index}>
+              <mesh geometry={decor}>
+                <meshStandardMaterial
+                  {...goldProps}
+                  clippingPlanes={[upperDecorClip]}
+                />
+              </mesh>
+              <mesh geometry={decor}>
+                <meshStandardMaterial
+                  {...goldProps}
+                  clippingPlanes={[lowerDecorClip]}
+                />
+              </mesh>
+            </Fragment>
+          ) : (
+            <mesh key={index} geometry={decor}>
+              <meshStandardMaterial {...goldProps} />
+            </mesh>
+          ),
+        )}
 
         {showName && (
           <Suspense fallback={null}>
