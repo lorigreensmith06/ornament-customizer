@@ -3,13 +3,7 @@ import type { ReactNode } from 'react'
 import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls, RoundedBox } from '@react-three/drei'
 import { Vector3 } from 'three'
-import {
-  ACESFilmicToneMapping,
-  AlwaysStencilFunc,
-  KeepStencilOp,
-  NotEqualStencilFunc,
-  ReplaceStencilOp,
-} from 'three'
+import { ACESFilmicToneMapping } from 'three'
 import type { BufferGeometry } from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -269,7 +263,7 @@ function NameAndRails({
   // Use the selected font for preview
   const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
 
-  const { geometry, railWidth, railTop, railBottom, textTop, textBottom, clippingWidth, clippingHeight, barHeight } = useMemo(() => {
+  const { geometry, railWidth, railTop, railBottom, barHeight } = useMemo(() => {
     const text = name.trim()
 
     // Houdini's rule: rails are at least 75% of the snowflake width.
@@ -281,10 +275,6 @@ function NameAndRails({
         railWidth: minimumRailWidth,
         railTop: opening.top,
         railBottom: opening.bottom,
-        textTop: opening.top,
-        textBottom: opening.bottom,
-        clippingWidth: opening.width,
-        clippingHeight: 0,
         barHeight: opening.barHeight,
       }
     }
@@ -309,10 +299,6 @@ function NameAndRails({
         railWidth: minimumRailWidth,
         railTop: opening.top,
         railBottom: opening.bottom,
-        textTop: opening.top,
-        textBottom: opening.bottom,
-        clippingWidth: opening.width,
-        clippingHeight: 0,
         barHeight: opening.barHeight,
       }
     }
@@ -367,12 +353,6 @@ function NameAndRails({
     const railTop = opening.y + bandHeight / 2 + verticalPadding
     const railBottom = opening.y - bandHeight / 2 - verticalPadding
 
-    // Clip the snowflake only where the text itself lives. The rail
-    // band keeps its snowflake so it intersects the rails for a
-    // watertight print.
-    const clippingWidth = railWidth
-    const clippingHeight = textHeight
-
     // Center horizontally and in depth on the text's own bounds, and
     // vertically on the capital band the rails were placed from.
     const boundsCenter = result.boundingBox!.getCenter(new Vector3())
@@ -383,24 +363,11 @@ function NameAndRails({
       -boundsCenter.z,
     )
 
-    // Recompute the bbox after centering so we know the text's
-    // exact vertical extent in world coordinates. The stencil mask
-    // will cover only this region (plus a small margin) instead of
-    // the full rail band, so snowflake branches remain visible
-    // inside the rail volumes and visually intersect them.
-    result.computeBoundingBox()
-    const textTop = opening.y + result.boundingBox!.max.y
-    const textBottom = opening.y + result.boundingBox!.min.y
-
     return {
       geometry: result,
       railWidth,
       railTop,
       railBottom,
-      textTop,
-      textBottom,
-      clippingWidth,
-      clippingHeight,
       barHeight,
     }
   }, [font, name, opening, textSize, selectedFont])
@@ -418,44 +385,6 @@ function NameAndRails({
 
   return (
     <group>
-      {/* Writes the text footprint into the stencil buffer so the
-          snowflake material can skip those pixels. Renders first via
-          renderOrder and produces no color or depth output. */}
-      {geometry && (
-        <mesh
-          position={[
-            opening.x,
-            (textTop + textBottom) / 2,
-            opening.z,
-          ]}
-          renderOrder={-1}
-        >
-          <boxGeometry
-            args={[
-              clippingWidth,
-              // Cover only the text extent (plus a small margin) so
-              // snowflake branches remain visible inside the rail
-              // volumes and visually intersect the rails. The mask
-              // depth still covers the snowflake and deepest
-              // decorator layer without extending far in front of
-              // the rails (the white-strip fix).
-              (textTop + 0.1) - (textBottom - 0.1),
-              opening.depth * 1.5,
-            ]}
-          />
-          <meshBasicMaterial
-            colorWrite={false}
-            depthWrite={false}
-            stencilWrite
-            stencilFunc={AlwaysStencilFunc}
-            stencilRef={1}
-            stencilFail={KeepStencilOp}
-            stencilZFail={KeepStencilOp}
-            stencilZPass={ReplaceStencilOp}
-          />
-        </mesh>
-      )}
-
       {geometry && (
         <>
           <RoundedBox
@@ -609,30 +538,20 @@ function Ornament({
           -opening.center.z,
         ]}
       >
-        {/* Stencil test hides the snowflake inside the name/rail
-            footprint written by the mask mesh in NameAndRails. */}
-        <mesh geometry={geometry} renderOrder={1}>
+        <mesh geometry={geometry}>
           <meshStandardMaterial
             color="#c6a15b"
             metalness={0.7}
             roughness={0.4}
-            stencilWrite
-            stencilFunc={NotEqualStencilFunc}
-            stencilRef={1}
-            stencilFuncMask={0xff}
           />
         </mesh>
 
         {decorGeometries.map((decor, index) => (
-          <mesh key={index} geometry={decor} renderOrder={1}>
+          <mesh key={index} geometry={decor}>
             <meshStandardMaterial
               color="#c6a15b"
               metalness={0.7}
               roughness={0.4}
-              stencilWrite
-              stencilFunc={NotEqualStencilFunc}
-              stencilRef={1}
-              stencilFuncMask={0xff}
             />
           </mesh>
         ))}
