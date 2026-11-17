@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls, RoundedBox } from '@react-three/drei'
 import { Vector3 } from 'three'
-import { ACESFilmicToneMapping } from 'three'
+import { ACESFilmicToneMapping, Plane } from 'three'
 import type { BufferGeometry } from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -258,7 +258,12 @@ function NameAndRails({
   opening: Opening
   textSize: number
   selectedFont: string
-  onLayout?: (railWidth: number, railTop: number, railBottom: number) => void
+  onLayout?: (
+    railWidth: number,
+    railTop: number,
+    railBottom: number,
+    barHeight: number,
+  ) => void
 }) {
   // Use the selected font for preview
   const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
@@ -380,8 +385,8 @@ function NameAndRails({
 
   // Report the rail footprint so the ornament can report its overall size.
   useEffect(() => {
-    onLayout?.(railWidth, railTop, railBottom)
-  }, [railWidth, railTop, railBottom, onLayout])
+    onLayout?.(railWidth, railTop, railBottom, barHeight)
+  }, [railWidth, railTop, railBottom, barHeight, onLayout])
 
   return (
     <group>
@@ -449,18 +454,20 @@ function Ornament({
     width: number
     top: number
     bottom: number
+    bar: number
   } | null>(null)
 
   // Same-value guard keeps the child -> parent report loop-free.
   const handleLayout = useCallback(
-    (width: number, top: number, bottom: number) => {
+    (width: number, top: number, bottom: number, bar: number) => {
       setRailDims((prev) =>
         prev &&
         prev.width === width &&
         prev.top === top &&
-        prev.bottom === bottom
+        prev.bottom === bottom &&
+        prev.bar === bar
           ? prev
-          : { width, top, bottom },
+          : { width, top, bottom, bar },
       )
     },
     [],
@@ -529,6 +536,31 @@ function Ornament({
     }
   }, [geometry, decorGeometries])
 
+  // Clear the base snowflake between the rails so it doesn't show
+  // behind the name: two world-space clipping planes keep geometry
+  // above the upper rail and below the lower rail. Each boundary sits
+  // a quarter of the rail thickness inside the rail so the clipped
+  // ends stay hidden behind the bar.
+  const { upperClip, lowerClip } = useMemo(() => {
+    if (!railDims || !showName) return { upperClip: null, lowerClip: null }
+    // The ornament group renders at scale 0.05 and is re-centered on
+    // the opening, so convert the rail bounds into world space.
+    const topWorld =
+      0.05 * (railDims.top - railDims.bar / 4 - opening.center.y)
+    const bottomWorld =
+      0.05 * (railDims.bottom + railDims.bar / 4 - opening.center.y)
+    return {
+      upperClip: new Plane(new Vector3(0, 1, 0), -topWorld),
+      lowerClip: new Plane(new Vector3(0, -1, 0), bottomWorld),
+    }
+  }, [railDims, showName, opening])
+
+  const goldProps = {
+    color: '#c6a15b' as const,
+    metalness: 0.7,
+    roughness: 0.4,
+  }
+
   return (
     <group scale={0.05}>
       <group
@@ -538,21 +570,32 @@ function Ornament({
           -opening.center.z,
         ]}
       >
-        <mesh geometry={geometry}>
-          <meshStandardMaterial
-            color="#c6a15b"
-            metalness={0.7}
-            roughness={0.4}
-          />
-        </mesh>
+        {upperClip && lowerClip ? (
+          <>
+            {/* Base above the upper rail */}
+            <mesh geometry={geometry}>
+              <meshStandardMaterial
+                {...goldProps}
+                clippingPlanes={[upperClip]}
+              />
+            </mesh>
+            {/* Base below the lower rail */}
+            <mesh geometry={geometry}>
+              <meshStandardMaterial
+                {...goldProps}
+                clippingPlanes={[lowerClip]}
+              />
+            </mesh>
+          </>
+        ) : (
+          <mesh geometry={geometry}>
+            <meshStandardMaterial {...goldProps} />
+          </mesh>
+        )}
 
         {decorGeometries.map((decor, index) => (
           <mesh key={index} geometry={decor}>
-            <meshStandardMaterial
-              color="#c6a15b"
-              metalness={0.7}
-              roughness={0.4}
-            />
+            <meshStandardMaterial {...goldProps} />
           </mesh>
         ))}
 
@@ -1251,7 +1294,7 @@ export default function App() {
               fov: 40,
             }}
             gl={{
-              stencil: true,
+              localClippingEnabled: true,
               // Compress metallic specular highlights so facets facing
               // the key light don't clip to white.
               toneMapping: ACESFilmicToneMapping,
