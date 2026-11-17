@@ -103,7 +103,7 @@ const MM_PER_SIZE: Record<string, number> = {
 }
 // Rail thickness as a fraction of the rendered text height,
 // matching the HDA's transform6/transform7 sy = 0.2 on the text bbox.
-const RAIL_HEIGHT_FRACTION = 0.2
+const RAIL_HEIGHT_FRACTION = 0.133
 
 // Measured in the Houdini output: the whole assembly is clipped at
 // the back plane (z = 0), so the centered ±0.05-unit text extrusion
