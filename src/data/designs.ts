@@ -16,6 +16,8 @@
 //   decorations  which decorator selects to show ('outer' | 'inner')
 //   clipping     whether base/decorators are cleared behind the name
 //   flipNormals  STL winding is reversed; flip normals at load
+//   textDepth    name extrusion depth in display-mm; defaults to the
+//                classic measured 5.55 mm
 
 export type OrnamentId = 'classic' | 'pasta'
 
@@ -31,6 +33,7 @@ export interface OrnamentDesign {
   decorations: ('outer' | 'inner')[]
   clipping: boolean
   flipNormals: boolean
+  textDepth?: number
 }
 
 const classicFonts = [
@@ -99,5 +102,8 @@ export const ornamentDesigns: OrnamentDesign[] = [
     clipping: false,
     // Exported pasta STL triangles wind inward; flip at load.
     flipNormals: true,
+    // polyextrude_font dist = 0.15 scene units; at unitScale 70 the
+    // lettering protrudes past the ~6.9 mm pasta face like the HDA.
+    textDepth: 10.5,
   },
 ]

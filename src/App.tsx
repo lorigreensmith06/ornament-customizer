@@ -253,6 +253,7 @@ function NameAndRails({
   textSize,
   selectedFont,
   rails,
+  textDepth = TEXT_DEPTH_MM,
   onLayout,
 }: {
   name: string
@@ -260,6 +261,7 @@ function NameAndRails({
   textSize: number
   selectedFont: string
   rails: boolean
+  textDepth?: number
   onLayout?: (
     railWidth: number,
     railTop: number,
@@ -289,7 +291,7 @@ function NameAndRails({
     const result = new TextGeometry(text, {
       font,
       size: 1,
-      depth: TEXT_DEPTH_MM,
+      depth: textDepth,
       curveSegments: 12,
       bevelEnabled: false,
     })
@@ -424,7 +426,7 @@ function NameAndRails({
             opening.y,
             // Text extrudes forward from the ornament's back plane
             // (z = 0); the centered geometry starts at back + depth/2.
-            opening.z - opening.depth / 2 + TEXT_DEPTH_MM / 2,
+            opening.z - opening.depth / 2 + textDepth / 2,
           ]}
         >
           <GoldMaterial />
@@ -445,6 +447,7 @@ function Ornament({
   rails,
   clipping,
   flipNormals,
+  textDepth,
   onSize,
 }: {
   file: string
@@ -457,6 +460,7 @@ function Ornament({
   rails: boolean
   clipping: boolean
   flipNormals: boolean
+  textDepth?: number
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
   const sources = useLoader(STLLoader, [file, ...decorFiles])
@@ -666,6 +670,7 @@ function Ornament({
               textSize={textSize}
               selectedFont={selectedFont}
               rails={rails}
+              textDepth={textDepth}
               onLayout={handleLayout}
             />
           </Suspense>
@@ -1413,6 +1418,7 @@ export default function App() {
                   rails={selectedDesign.rails}
                   clipping={selectedDesign.clipping}
                   flipNormals={selectedDesign.flipNormals}
+                  textDepth={selectedDesign.textDepth}
                   onSize={setOrnSize}
                 />
               )}
