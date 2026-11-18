@@ -1,14 +1,9 @@
-import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Canvas, useLoader } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { OrbitControls, RoundedBox } from '@react-three/drei'
 import { Vector3 } from 'three'
-import {
-  AlwaysStencilFunc,
-  KeepStencilOp,
-  NotEqualStencilFunc,
-  ReplaceStencilOp,
-} from 'three'
+import { ACESFilmicToneMapping, Plane } from 'three'
 import type { BufferGeometry } from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
@@ -39,17 +34,43 @@ import { initAnalytics, trackPageView } from './analytics'
 const designs = [
   {
     label: 'Two Branch',
+    id: 'two_pairs',
     file: '/models/snowflake_two_pairs.stl',
   },
   {
     label: 'Three Branch',
+    id: 'three_pairs',
     file: '/models/snowflake_three_pairs.stl',
   },
   {
     label: 'Longer Branches',
+    id: 'longer_branches',
     file: '/models/snowflake_longer_branches.stl',
   },
 ]
+
+const outerDecorations = [
+  { label: 'None', value: 'none' },
+  { label: 'Diamonds', value: 'diamonds' },
+  { label: 'Gems', value: 'hexagons' },
+  { label: 'Beads', value: 'spheres' },
+]
+
+const innerDecorations = [
+  { label: 'None', value: 'none' },
+  { label: 'Gems', value: 'hexagons' },
+  { label: 'Beads', value: 'spheres' },
+]
+
+// Decoration preview STLs share the base snowflake's mm coordinate
+// frame; 'none' resolves to no extra layer. Inner decorations are
+// style-specific, outer are shared across styles.
+function decorationFiles(designId: string, outer: string, inner: string) {
+  const files: string[] = []
+  if (outer !== 'none') files.push(`/models/snowflake_outer_${outer}.stl`)
+  if (inner !== 'none') files.push(`/models/snowflake_inner_${designId}_${inner}.stl`)
+  return files
+}
 
 const fonts = [
   {
@@ -82,7 +103,21 @@ const MM_PER_SIZE: Record<string, number> = {
 }
 // Rail thickness as a fraction of the rendered text height,
 // matching the HDA's transform6/transform7 sy = 0.2 on the text bbox.
-const RAIL_HEIGHT_FRACTION = 0.2
+const RAIL_HEIGHT_FRACTION = 0.133
+
+// Measured in the Houdini output: the whole assembly is clipped at
+// the back plane (z = 0), so the centered ±0.05-unit text extrusion
+// ends up 5.55 mm deep with its back flush against the ornament.
+const TEXT_DEPTH_MM = 5.5547
+// Rails: transform_trim_and_embed_support_bars sz = 0.5, clipped the
+// same way — 0..2.777 mm, back flush.
+const RAIL_DEPTH_MM = 2.7774
+
+// Z position that puts a centered-depth box/extrusion's back face
+// essentially flush with the ornament's back surface. The tiny inset
+// avoids coplanar z-fighting with the ornament's own back plane.
+const flushBackZ = (opening: Opening, depth: number) =>
+  opening.z - opening.depth / 2 + depth / 2 - 0.02
 const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   dejavu: '/fonts/DejaVuSans_Bold.json',
@@ -207,7 +242,7 @@ function GoldMaterial() {
     <meshStandardMaterial
       color="#c6a15b"
       metalness={0.7}
-      roughness={0.3}
+      roughness={0.4}
     />
   )
 }
@@ -223,16 +258,21 @@ function NameAndRails({
   opening: Opening
   textSize: number
   selectedFont: string
-  onLayout?: (railWidth: number, railTop: number, railBottom: number) => void
+  onLayout?: (
+    railWidth: number,
+    railTop: number,
+    railBottom: number,
+    barHeight: number,
+  ) => void
 }) {
   // Use the selected font for preview
   const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
 
-  const { geometry, railWidth, railTop, railBottom, clippingWidth, clippingHeight, barHeight } = useMemo(() => {
+  const { geometry, railWidth, railTop, railBottom, barHeight } = useMemo(() => {
     const text = name.trim()
 
-    // Houdini's rule: rails are at least 75% of the snowflake width.
-    const minimumRailWidth = opening.ornamentWidth * 0.75
+    // Houdini's rule: rails are at least 80% of the snowflake width.
+    const minimumRailWidth = opening.ornamentWidth * 0.80
 
     if (!text) {
       return {
@@ -240,8 +280,6 @@ function NameAndRails({
         railWidth: minimumRailWidth,
         railTop: opening.top,
         railBottom: opening.bottom,
-        clippingWidth: opening.width,
-        clippingHeight: 0,
         barHeight: opening.barHeight,
       }
     }
@@ -249,7 +287,7 @@ function NameAndRails({
     const result = new TextGeometry(text, {
       font,
       size: 1,
-      depth: opening.depth,
+      depth: TEXT_DEPTH_MM,
       curveSegments: 12,
       bevelEnabled: false,
     })
@@ -266,8 +304,6 @@ function NameAndRails({
         railWidth: minimumRailWidth,
         railTop: opening.top,
         railBottom: opening.bottom,
-        clippingWidth: opening.width,
-        clippingHeight: 0,
         barHeight: opening.barHeight,
       }
     }
@@ -288,31 +324,55 @@ function NameAndRails({
     // HDA rule: rail thickness = 0.2 x rendered text bbox height.
     const barHeight = textHeight * RAIL_HEIGHT_FRACTION
 
-    // Same clearance between text and rail centers as the original opening.
-    // At textSize = 1 this puts the rails exactly at opening.top/bottom.
-    const verticalPadding = (opening.gap - opening.textHeight) / 2
+    // Rails centered on the capital band edges: letter tops/bottoms
+    // overlap the rail inner faces, matching the generated STL where
+    // text and rails are boole'd together.
+    const verticalPadding = 0
 
     const railWidth = Math.max(minimumRailWidth, textWidth)
 
-    // Position rails based on actual text height with padding
-    const railTop = opening.y + textHeight / 2 + verticalPadding
-    const railBottom = opening.y - textHeight / 2 - verticalPadding
+    // Rails follow the capital-letter band (baseline to cap height,
+    // measured from an "H" in the same font), not the whole string's
+    // bounds: a descender such as Q's tail would otherwise push the
+    // bottom rail away from every other letter.
+    const capProbe = new TextGeometry('H', {
+      font,
+      size: 1,
+      depth: 1,
+      curveSegments: 1,
+      bevelEnabled: false,
+    })
 
-    // Clip the snowflake only where the text itself lives. The rail
-    // band keeps its snowflake so it intersects the rails for a
-    // watertight print.
-    const clippingWidth = railWidth
-    const clippingHeight = textHeight
+    capProbe.computeBoundingBox()
 
-    result.center()
+    const capBottom = capProbe.boundingBox!.min.y * finalScale
+    const capTop = capProbe.boundingBox!.max.y * finalScale
+
+    capProbe.dispose()
+
+    const hasCapBand = capTop > capBottom
+    const bandBottom = hasCapBand ? capBottom : result.boundingBox!.min.y
+    const bandTop = hasCapBand ? capTop : result.boundingBox!.max.y
+    const bandHeight = bandTop - bandBottom
+
+    const railTop = opening.y + bandHeight / 2 + verticalPadding
+    const railBottom = opening.y - bandHeight / 2 - verticalPadding
+
+    // Center horizontally and in depth on the text's own bounds, and
+    // vertically on the capital band the rails were placed from.
+    const boundsCenter = result.boundingBox!.getCenter(new Vector3())
+
+    result.translate(
+      -boundsCenter.x,
+      -(bandTop + bandBottom) / 2,
+      -boundsCenter.z,
+    )
 
     return {
       geometry: result,
       railWidth,
       railTop,
       railBottom,
-      clippingWidth,
-      clippingHeight,
       barHeight,
     }
   }, [font, name, opening, textSize, selectedFont])
@@ -325,68 +385,30 @@ function NameAndRails({
 
   // Report the rail footprint so the ornament can report its overall size.
   useEffect(() => {
-    onLayout?.(railWidth, railTop, railBottom)
-  }, [railWidth, railTop, railBottom, onLayout])
+    onLayout?.(railWidth, railTop, railBottom, barHeight)
+  }, [railWidth, railTop, railBottom, barHeight, onLayout])
 
   return (
     <group>
-      {/* Writes the text footprint into the stencil buffer so the
-          snowflake material can skip those pixels. Renders first via
-          renderOrder and produces no color or depth output. */}
-      {geometry && (
-        <mesh
-          position={[opening.x, opening.y, opening.z]}
-          renderOrder={-1}
-        >
-          <boxGeometry
-            args={[
-              clippingWidth,
-              clippingHeight,
-              opening.depth,
-            ]}
-          />
-          <meshBasicMaterial
-            colorWrite={false}
-            depthWrite={false}
-            stencilWrite
-            stencilFunc={AlwaysStencilFunc}
-            stencilRef={1}
-            stencilFail={KeepStencilOp}
-            stencilZFail={KeepStencilOp}
-            stencilZPass={ReplaceStencilOp}
-          />
-        </mesh>
-      )}
-
       {geometry && (
         <>
-          <mesh
-            position={[opening.x, railTop, opening.z]}
+          <RoundedBox
+            args={[railWidth, barHeight, RAIL_DEPTH_MM]}
+            radius={barHeight / 4}
+            smoothness={8}
+            position={[opening.x, railTop, flushBackZ(opening, RAIL_DEPTH_MM)]}
           >
-            <boxGeometry
-              args={[
-                railWidth,
-                barHeight,
-                opening.depth,
-              ]}
-            />
-
             <GoldMaterial />
-          </mesh>
+          </RoundedBox>
 
-          <mesh
-            position={[opening.x, railBottom, opening.z]}
+          <RoundedBox
+            args={[railWidth, barHeight, RAIL_DEPTH_MM]}
+            radius={barHeight / 4}
+            smoothness={8}
+            position={[opening.x, railBottom, flushBackZ(opening, RAIL_DEPTH_MM)]}
           >
-            <boxGeometry
-              args={[
-                railWidth,
-                barHeight,
-                opening.depth,
-              ]}
-            />
-
             <GoldMaterial />
-          </mesh>
+          </RoundedBox>
         </>
       )}
 
@@ -396,7 +418,9 @@ function NameAndRails({
           position={[
             opening.x,
             opening.y,
-            opening.z,
+            // Text extrudes forward from the ornament's back plane
+            // (z = 0); the centered geometry starts at back + depth/2.
+            opening.z - opening.depth / 2 + TEXT_DEPTH_MM / 2,
           ]}
         >
           <GoldMaterial />
@@ -408,6 +432,7 @@ function NameAndRails({
 
 function Ornament({
   file,
+  decorFiles,
   name,
   showName,
   textSize,
@@ -415,36 +440,40 @@ function Ornament({
   onSize,
 }: {
   file: string
+  decorFiles: string[]
   name: string
   showName: boolean
   textSize: number
   selectedFont: string
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
-  const source = useLoader(STLLoader, file)
+  const sources = useLoader(STLLoader, [file, ...decorFiles])
+  const source = sources[0]
 
   const [railDims, setRailDims] = useState<{
     width: number
     top: number
     bottom: number
+    bar: number
   } | null>(null)
 
   // Same-value guard keeps the child -> parent report loop-free.
   const handleLayout = useCallback(
-    (width: number, top: number, bottom: number) => {
+    (width: number, top: number, bottom: number, bar: number) => {
       setRailDims((prev) =>
         prev &&
         prev.width === width &&
         prev.top === top &&
-        prev.bottom === bottom
+        prev.bottom === bottom &&
+        prev.bar === bar
           ? prev
-          : { width, top, bottom },
+          : { width, top, bottom, bar },
       )
     },
     [],
   )
 
-  const { geometry, opening } = useMemo(() => {
+  const { geometry, decorGeometries, opening } = useMemo(() => {
     // Do not center or otherwise mutate useLoader's cached STL.
     const opening = measureOpening(source)
 
@@ -453,11 +482,18 @@ function Ornament({
 
     geometry.computeBoundingBox()
 
+    const decorGeometries = sources.slice(1).map((decor) => {
+      const g = toCreasedNormals(decor.clone(), Math.PI / 3)
+      g.computeBoundingBox()
+      return g
+    })
+
     return {
       geometry,
+      decorGeometries,
       opening,
     }
-  }, [source])
+  }, [sources, source])
 
   // STL coordinates are millimeters; union the snowflake bbox with the
   // rail boxes for the approximate finished size.
@@ -468,6 +504,14 @@ function Ornament({
     let maxX = bounds.max.x
     let minY = bounds.min.y
     let maxY = bounds.max.y
+
+    for (const decor of decorGeometries) {
+      const b = decor.boundingBox!
+      minX = Math.min(minX, b.min.x)
+      maxX = Math.max(maxX, b.max.x)
+      minY = Math.min(minY, b.min.y)
+      maxY = Math.max(maxY, b.max.y)
+    }
 
     if (showName && railDims) {
       const halfWidth = railDims.width / 2
@@ -483,11 +527,71 @@ function Ornament({
       y: maxY - minY,
       z: bounds.max.z - bounds.min.z,
     })
-  }, [geometry, opening, showName, railDims, onSize])
+  }, [geometry, decorGeometries, opening, showName, railDims, onSize])
 
   useEffect(() => {
-    return () => geometry.dispose()
-  }, [geometry])
+    return () => {
+      geometry.dispose()
+      for (const decor of decorGeometries) decor.dispose()
+    }
+  }, [geometry, decorGeometries])
+
+  // Clear the base snowflake and decorators inside the rectangular
+  // rail region behind the name. Infinite planes only intersect, so
+  // the kept region is a union rendered as four instances: above the
+  // top rail, below the bottom rail, and the left/right strips beside
+  // the rails inside the band. Every boundary sits a quarter of the
+  // rail thickness inside the rail so clipped ends stay hidden.
+  const { basePlanes, decorPlanes } = useMemo(() => {
+    if (!railDims || !showName) {
+      return { basePlanes: null, decorPlanes: null }
+    }
+    // The ornament group renders at scale 0.05 and is re-centered on
+    // the opening, so convert the rail bounds into world space.
+    const world = (v: number) => 0.05 * (v - opening.center.y)
+    const worldX = (v: number) => 0.05 * (v - opening.center.x)
+    const overlap = railDims.bar / 4
+    const topBand = world(railDims.top - overlap)
+    const bottomBand = world(railDims.bottom + overlap)
+    // Rail endpoints, extended a half-bar outward so no band-height
+    // geometry survives inside the rail ends (the base protrudes past
+    // the rail front face, so an inward sliver stays visible).
+    const overlapX = railDims.bar / 2
+    const leftEdge =
+      worldX(opening.x) + 0.05 * (-overlapX - railDims.width / 2)
+    const rightEdge =
+      worldX(opening.x) + 0.05 * (railDims.width / 2 + overlapX)
+    const regions = (top: number, bottom: number): Plane[][] => [
+      [new Plane(new Vector3(0, 1, 0), -top)], // above top rail
+      [new Plane(new Vector3(0, -1, 0), bottom)], // below bottom rail
+      [
+        new Plane(new Vector3(-1, 0, 0), leftEdge),
+        new Plane(new Vector3(0, -1, 0), top),
+        new Plane(new Vector3(0, 1, 0), -bottom),
+      ], // strip left of the rails
+      [
+        new Plane(new Vector3(1, 0, 0), -rightEdge),
+        new Plane(new Vector3(0, -1, 0), top),
+        new Plane(new Vector3(0, 1, 0), -bottom),
+      ], // strip right of the rails
+    ]
+    return {
+      basePlanes: regions(topBand, bottomBand),
+      // Decorators are clipped in Y across the full width, so beads
+      // intersecting the rails are cut at the same in-rail boundary
+      // even when they extend past the rail endpoints.
+      decorPlanes: [
+        [new Plane(new Vector3(0, 1, 0), -topBand)],
+        [new Plane(new Vector3(0, -1, 0), bottomBand)],
+      ],
+    }
+  }, [railDims, showName, opening])
+
+  const goldProps = {
+    color: '#c6a15b' as const,
+    metalness: 0.7,
+    roughness: 0.4,
+  }
 
   return (
     <group scale={0.05}>
@@ -498,19 +602,41 @@ function Ornament({
           -opening.center.z,
         ]}
       >
-        {/* Stencil test hides the snowflake inside the name/rail
-            footprint written by the mask mesh in NameAndRails. */}
-        <mesh geometry={geometry} renderOrder={1}>
-          <meshStandardMaterial
-            color="#c6a15b"
-            metalness={0.7}
-            roughness={0.3}
-            stencilWrite
-            stencilFunc={NotEqualStencilFunc}
-            stencilRef={1}
-            stencilFuncMask={0xff}
-          />
-        </mesh>
+        {/* One instance per kept region; the regions partition the
+            model exactly so there is no overlap or z-fighting. */}
+        {basePlanes ? (
+          basePlanes.map((planes, i) => (
+            <mesh key={i} geometry={geometry}>
+              <meshStandardMaterial
+                {...goldProps}
+                clippingPlanes={planes}
+              />
+            </mesh>
+          ))
+        ) : (
+          <mesh geometry={geometry}>
+            <meshStandardMaterial {...goldProps} />
+          </mesh>
+        )}
+
+        {decorGeometries.map((decor, index) =>
+          decorPlanes ? (
+            <Fragment key={index}>
+              {decorPlanes.map((planes, i) => (
+                <mesh key={i} geometry={decor}>
+                  <meshStandardMaterial
+                    {...goldProps}
+                    clippingPlanes={planes}
+                  />
+                </mesh>
+              ))}
+            </Fragment>
+          ) : (
+            <mesh key={index} geometry={decor}>
+              <meshStandardMaterial {...goldProps} />
+            </mesh>
+          ),
+        )}
 
         {showName && (
           <Suspense fallback={null}>
@@ -612,7 +738,7 @@ export default function App() {
   }, [pathname])
   const requestedDesign = searchParams.get('design')
   const [selectedModel, setSelectedModel] =
-    useState(designs[0].file)
+    useState(designs[1].file)
 
   const [showName, setShowName] =
     useState(true)
@@ -626,6 +752,12 @@ export default function App() {
   const [textSize, setTextSize] =
     useState(1.0)
 
+  const [outerDecor, setOuterDecor] =
+    useState('diamonds')
+
+  const [innerDecor, setInnerDecor] =
+    useState('none')
+
   useEffect(() => {
     if (requestedDesign
         && designs.some((design) => design.file === requestedDesign)) {
@@ -637,7 +769,12 @@ export default function App() {
 
   const paramsKey = JSON.stringify({
     name, selectedModel, showName, selectedFont, textSize,
+    outerDecor, innerDecor,
   })
+
+  const selectedDesign = designs.find((d) => d.file === selectedModel)
+    ?? designs[0]
+  const decorFiles = decorationFiles(selectedDesign.id, outerDecor, innerDecor)
 
   const [generatedGeom, setGeneratedGeom] =
     useState<BufferGeometry | null>(null)
@@ -749,6 +886,7 @@ export default function App() {
         jobId: generatedJobId,
         product,
         name, selectedModel, showName, selectedFont, textSize,
+        outerDecor, innerDecor,
         downloadUrl, previewUrl: generatedPreview,
         quantity: 1, addedAt: Date.now(),
       }]
@@ -799,6 +937,7 @@ export default function App() {
             name: i.showName ? i.name : '', design: i.selectedModel,
             font: i.selectedFont, fontSize: i.textSize,
             showName: i.showName,
+            outerDecoration: i.outerDecor, innerDecoration: i.innerDecor,
           },
         })),
       }),
@@ -817,10 +956,12 @@ export default function App() {
         showName: item.showName, selectedFont: item.selectedFont,
         textSize: item.textSize, url: item.downloadUrl,
         preview: item.previewUrl, job: item.jobId, product: item.product,
+        outerDecor: item.outerDecor, innerDecor: item.innerDecor,
         key: JSON.stringify({
           name: item.name, selectedModel: item.selectedModel,
           showName: item.showName, selectedFont: item.selectedFont,
           textSize: item.textSize,
+          outerDecor: item.outerDecor, innerDecor: item.innerDecor,
         }),
       }))
     } else {
@@ -860,7 +1001,8 @@ export default function App() {
   useEffect(() => {
     generatedLoad.current++
     setViewGenerated(false)
-  }, [name, selectedModel, showName, selectedFont, textSize])
+  }, [name, selectedModel, showName, selectedFont, textSize,
+      outerDecor, innerDecor])
 
   // Returning from Stripe Checkout is a fresh page load: verify the
   // session server-side, then restore the purchased artifact from the
@@ -922,6 +1064,8 @@ export default function App() {
         setShowName(s.showName)
         setSelectedFont(s.selectedFont)
         setTextSize(s.textSize)
+        setOuterDecor(s.outerDecor ?? 'none')
+        setInnerDecor(s.innerDecor ?? 'none')
         setDownloadUrl(s.url)
         // Only an 'stl' purchase unlocks the download. A paid 'printed'
         // order confirms separately and leaves the STL gated.
@@ -989,6 +1133,32 @@ export default function App() {
             {designs.map((design) => (
               <option key={design.file} value={design.file}>
                 {design.label}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="outer-decor">Branch Tips</label>
+          <select
+            id="outer-decor"
+            value={outerDecor}
+            onChange={(event) => setOuterDecor(event.target.value)}
+          >
+            {outerDecorations.map((decor) => (
+              <option key={decor.value} value={decor.value}>
+                {decor.label}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="inner-decor">Branch Accents</label>
+          <select
+            id="inner-decor"
+            value={innerDecor}
+            onChange={(event) => setInnerDecor(event.target.value)}
+          >
+            {innerDecorations.map((decor) => (
+              <option key={decor.value} value={decor.value}>
+                {decor.label}
               </option>
             ))}
           </select>
@@ -1094,6 +1264,8 @@ export default function App() {
           showName={showName}
           selectedFont={selectedFont}
           textSize={textSize}
+          outerDecoration={outerDecor}
+          innerDecoration={innerDecor}
           downloadUrl={downloadUrl}
           stlValid={stlValid}
           paid={downloadUrl != null && downloadUrl === paidUrl}
@@ -1160,7 +1332,12 @@ export default function App() {
               position: [0, 0, 9],
               fov: 40,
             }}
-            gl={{ stencil: true }}
+            gl={{
+              localClippingEnabled: true,
+              // Compress metallic specular highlights so facets facing
+              // the key light don't clip to white.
+              toneMapping: ACESFilmicToneMapping,
+            }}
           >
             <color
               attach="background"
@@ -1171,7 +1348,7 @@ export default function App() {
 
             <directionalLight
               position={[3, 4, 6]}
-              intensity={3}
+              intensity={2}
             />
 
             <directionalLight
@@ -1188,6 +1365,7 @@ export default function App() {
               ) : (
                 <Ornament
                   file={selectedModel}
+                  decorFiles={decorFiles}
                   name={name}
                   showName={showName}
                   textSize={textSize}

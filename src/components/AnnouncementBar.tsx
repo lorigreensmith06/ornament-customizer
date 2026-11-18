@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { API } from '../DownloadPanel'
+import { readStoredOrders } from '../orders'
 import { trackEvent } from '../analytics'
 
 type CampaignStatus = {
@@ -33,7 +34,14 @@ export default function AnnouncementBar() {
       .catch(() => setCamp({ enabled: false }))
   }, [])
 
-  if (!camp?.enabled || (camp.remaining ?? 0) <= 0) return null
+  // Match FreeStlOffer: once this browser has claimed, the offer card no
+  // longer renders — keep the banner hidden too so the link can't dead-end.
+  const alreadyClaimed =
+    camp?.slug != null &&
+    readStoredOrders().some((o) => o.promo === camp.slug)
+
+  if (!camp?.enabled || (camp.remaining ?? 0) <= 0 || alreadyClaimed)
+    return null
 
   return (
     <Link

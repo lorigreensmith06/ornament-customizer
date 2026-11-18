@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import heroImg from '../assets/ornament_main_image.png'
+import { galleryPhotos } from '../data/gallery'
 import AlphabetPreview from '../components/AlphabetPreview'
 import { LazyView } from '../components/ModelThumb'
 
@@ -95,6 +96,37 @@ export default function HomePage() {
             zoom={1.1}
           />
         </LazyView>
+      </section>
+
+      <section className="gallery" aria-label="Customer ornaments">
+        <div className="gallery-inner">
+        <h2 className="gallery-title">From Design to Reality</h2>
+        <p className="gallery-sub">
+          Real 3D-printed ornaments, created with Ornament Creator.
+        </p>
+        <div className="gallery-grid">
+          {galleryPhotos.map((photo) => {
+            const img = (
+              <img src={photo.image} alt={photo.alt} loading="lazy" />
+            )
+            return (
+              <figure className="gallery-item" key={photo.image}>
+                {photo.link ? (
+                  <a className="gallery-link" href={photo.link}>{img}</a>
+                ) : (
+                  img
+                )}
+                {photo.caption && (
+                  <figcaption>{photo.caption}</figcaption>
+                )}
+              </figure>
+            )
+          })}
+        </div>
+        <Link className="hero-cta" to="/create">
+          Create Your Own Ornament →
+        </Link>
+        </div>
       </section>
 
       <section className="features" aria-label="How it works">

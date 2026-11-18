@@ -39,13 +39,15 @@ type OrderItem = {
   label: string
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, order, hasOrderAccess, onDismissOrder, onReady, onAddToCart, generatedJobId, previewUrl }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, outerDecoration, innerDecoration, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, order, hasOrderAccess, onDismissOrder, onReady, onAddToCart, generatedJobId, previewUrl }: {
 
   name: string
   selectedModel: string
   showName: boolean
   selectedFont: string
   textSize: number
+  outerDecoration?: string
+  innerDecoration?: string
   downloadUrl?: string | null
   generatedJobId?: string | null
   previewUrl?: string | null
@@ -81,7 +83,8 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     setError('')
     setSuccess(false)
     return () => { active.current?.abort() }
-  }, [name, selectedModel, showName, selectedFont, textSize])
+  }, [name, selectedModel, showName, selectedFont, textSize,
+      outerDecoration, innerDecoration])
 
   async function generate() {
     if (active.current) return
@@ -104,6 +107,8 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
           show_text: showName,
           font_style: selectedFont,
           font_size: textSize,
+          outer_decoration: outerDecoration ?? 'none',
+          inner_decoration: innerDecoration ?? 'none',
         }),
         signal,
       })) as { id: string }
