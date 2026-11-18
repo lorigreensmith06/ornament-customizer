@@ -80,20 +80,17 @@ export default function HomePage() {
       <section className="designs-feature" aria-label="Snowflake designs">
         <h2 className="collection-heading">Personalized Snowflakes</h2>
         <p className="collection-sub">
-          Two snowflake designs — pick a base, add a name, and make it
-          yours.
+          Pick a snowflake base, add a name, and make it yours.
         </p>
         <div className="design-grid">
           {ornamentDesigns
-            .filter((d) => d.file === '/models/snowflake_two_pairs.stl'
-              || d.ornament === 'pasta')
             .map((design) => (
               <Link
                 key={design.file}
                 className="design-card"
                 to={`/create?design=${encodeURIComponent(design.file)}`}
               >
-                <LazyView className="design-thumb design-thumb-3d">
+                <LazyView className="design-thumb-3d">
                   <ModelThumb file={design.file}
                     flipNormals={design.flipNormals} />
                 </LazyView>
