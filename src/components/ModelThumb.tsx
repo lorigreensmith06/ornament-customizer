@@ -30,11 +30,28 @@ function extractGeometry(loaded: unknown, file: string): BufferGeometry {
   return toCreasedNormals((loaded as BufferGeometry).clone(), Math.PI / 3)
 }
 
-function Model({ file }: { file: string }) {
+// Reverses each triangle's winding so inward-facing STL assets
+// render with correct normals (used for pasta previews).
+function flipWinding(geometry: BufferGeometry) {
+  const pos = geometry.getAttribute('position')
+  for (let i = 0; i < pos.count; i += 3) {
+    const ax = pos.getX(i + 1), ay = pos.getY(i + 1), az = pos.getZ(i + 1)
+    pos.setXYZ(i + 1, pos.getX(i + 2), pos.getY(i + 2), pos.getZ(i + 2))
+    pos.setXYZ(i + 2, ax, ay, az)
+  }
+  pos.needsUpdate = true
+}
+
+function Model({ file, flipNormals }: { file: string; flipNormals?: boolean }) {
   const loaded = useLoader(
     file.endsWith('.glb') ? GLTFLoader : STLLoader, file)
   const geometry = useMemo(() => {
     const g = extractGeometry(loaded, file)
+    if (flipNormals) {
+      flipWinding(g)
+      g.deleteAttribute('normal')
+      g.computeVertexNormals()
+    }
     g.computeBoundingBox()
     const box = g.boundingBox!
     const size = box.getSize(new Vector3())
@@ -42,7 +59,7 @@ function Model({ file }: { file: string }) {
     g.center()
     g.scale(scale, scale, scale)
     return g
-  }, [loaded, file])
+  }, [loaded, file, flipNormals])
   return (
     <mesh geometry={geometry}>
       <meshStandardMaterial
@@ -54,7 +71,10 @@ function Model({ file }: { file: string }) {
   )
 }
 
-export default function ModelThumb({ file }: { file: string }) {
+export default function ModelThumb({ file, flipNormals }: {
+  file: string
+  flipNormals?: boolean
+}) {
   return (
     <Canvas
       camera={{ position: [0, 0, 8], fov: 40 }}
@@ -66,7 +86,7 @@ export default function ModelThumb({ file }: { file: string }) {
       <directionalLight position={[3, 4, 6]} intensity={3} />
       <directionalLight position={[-3, -2, 2]} intensity={1} />
       <Suspense fallback={null}>
-        <Model file={file} />
+        <Model file={file} flipNormals={flipNormals} />
       </Suspense>
     </Canvas>
   )

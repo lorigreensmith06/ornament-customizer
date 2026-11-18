@@ -938,7 +938,20 @@ body {
 }
 
 .designs-feature .design-grid {
-  margin-top: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  max-width: 720px;
+  margin: 0.9rem auto 0;
+}
+
+.designs-feature .design-thumb-3d {
+  height: 240px;
+}
+
+@media (max-width: 700px) {
+  .designs-feature .design-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- Collection feature (homepage) ---------- */

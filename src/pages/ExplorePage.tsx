@@ -24,7 +24,8 @@ export default function ExplorePage() {
             to={`/create?design=${encodeURIComponent(design.file)}`}
           >
             <LazyView className="design-thumb design-thumb-3d">
-              <ModelThumb file={design.file} />
+              <ModelThumb file={design.file}
+                flipNormals={design.flipNormals} />
             </LazyView>
             <span className="design-name">{design.label}</span>
             <span className="design-blurb">{design.blurb}</span>

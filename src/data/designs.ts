@@ -15,6 +15,7 @@
 //   rails        whether the name sits between upper/lower rails
 //   decorations  which decorator selects to show ('outer' | 'inner')
 //   clipping     whether base/decorators are cleared behind the name
+//   flipNormals  STL winding is reversed; flip normals at load
 
 export type OrnamentId = 'classic' | 'pasta'
 
@@ -29,6 +30,7 @@ export interface OrnamentDesign {
   rails: boolean
   decorations: ('outer' | 'inner')[]
   clipping: boolean
+  flipNormals: boolean
 }
 
 const classicFonts = [
@@ -45,7 +47,7 @@ const pastaFonts = [
 
 export const ornamentDesigns: OrnamentDesign[] = [
   {
-    label: 'Two Branch',
+    label: 'Classic Snowflake',
     file: '/models/snowflake_two_pairs.stl',
     blurb: 'Classic six-armed snowflake with two pairs of branches.',
     ornament: 'classic',
@@ -55,6 +57,7 @@ export const ornamentDesigns: OrnamentDesign[] = [
     rails: true,
     decorations: ['outer', 'inner'],
     clipping: true,
+    flipNormals: false,
   },
   {
     label: 'Three Branch',
@@ -67,6 +70,7 @@ export const ornamentDesigns: OrnamentDesign[] = [
     rails: true,
     decorations: ['outer', 'inner'],
     clipping: true,
+    flipNormals: false,
   },
   {
     label: 'Longer Branches',
@@ -79,6 +83,7 @@ export const ornamentDesigns: OrnamentDesign[] = [
     rails: true,
     decorations: ['outer', 'inner'],
     clipping: true,
+    flipNormals: false,
   },
   {
     label: 'Pasta Snowflake',
@@ -92,5 +97,7 @@ export const ornamentDesigns: OrnamentDesign[] = [
     rails: false,
     decorations: [],
     clipping: false,
+    // Exported pasta STL triangles wind inward; flip at load.
+    flipNormals: true,
   },
 ]

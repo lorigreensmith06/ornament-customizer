@@ -109,6 +109,26 @@ const fontUrls: Record<string, string> = {
   montserrat: '/fonts/Lato_Bold.json',
 }
 
+// Some exported STL assets have inward-facing triangles (pasta);
+// reversing each triangle's winding flips its normals without
+// mirroring the geometry.
+function flipWinding(geometry: BufferGeometry) {
+  const pos = geometry.getAttribute('position')
+  const norm = geometry.getAttribute('normal')
+  for (let i = 0; i < pos.count; i += 3) {
+    for (const attr of [pos, norm]) {
+      if (!attr) continue
+      const ax = attr.getX(i + 1), ay = attr.getY(i + 1),
+        az = attr.getZ(i + 1)
+      attr.setXYZ(i + 1, attr.getX(i + 2), attr.getY(i + 2),
+        attr.getZ(i + 2))
+      attr.setXYZ(i + 2, ax, ay, az)
+    }
+  }
+  pos.needsUpdate = true
+  if (norm) norm.needsUpdate = true
+}
+
 // All dimensions below use the STL's original coordinates, before display scale.
 // A model may already contain a horizontal opening crossing Y = 0
 // (measured), or be a complete snowflake (opening synthesized).
@@ -424,6 +444,7 @@ function Ornament({
   unitScale,
   rails,
   clipping,
+  flipNormals,
   onSize,
 }: {
   file: string
@@ -435,6 +456,7 @@ function Ornament({
   unitScale: number
   rails: boolean
   clipping: boolean
+  flipNormals: boolean
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
   const sources = useLoader(STLLoader, [file, ...decorFiles])
@@ -469,6 +491,7 @@ function Ornament({
     // Preview assets may be authored in non-mm units (pasta scene
     // units); normalize so layout math stays in millimeters.
     if (unitScale !== 1) base.scale(unitScale, unitScale, unitScale)
+    if (flipNormals) flipWinding(base)
     const opening = measureOpening(base)
 
     // Smooth normals across shallow angles; keep edges >= 60 deg hard.
@@ -479,6 +502,7 @@ function Ornament({
     const decorGeometries = sources.slice(1).map((decor) => {
       const d = decor.clone()
       if (unitScale !== 1) d.scale(unitScale, unitScale, unitScale)
+      if (flipNormals) flipWinding(d)
       const g = toCreasedNormals(d, Math.PI / 3)
       g.computeBoundingBox()
       return g
@@ -489,7 +513,7 @@ function Ornament({
       decorGeometries,
       opening,
     }
-  }, [sources, source, unitScale])
+  }, [sources, source, unitScale, flipNormals])
 
   // STL coordinates are millimeters; union the snowflake bbox with the
   // rail boxes for the approximate finished size.
@@ -1388,6 +1412,7 @@ export default function App() {
                   unitScale={selectedDesign.unitScale}
                   rails={selectedDesign.rails}
                   clipping={selectedDesign.clipping}
+                  flipNormals={selectedDesign.flipNormals}
                   onSize={setOrnSize}
                 />
               )}
