@@ -30,24 +30,9 @@ import TermsPage from './pages/TermsPage'
 import Footer from './components/Footer'
 import CookieConsent from './components/CookieConsent'
 import { initAnalytics, trackPageView } from './analytics'
+import { ornamentDesigns } from './data/designs'
 
-const designs = [
-  {
-    label: 'Two Branch',
-    id: 'two_pairs',
-    file: '/models/snowflake_two_pairs.stl',
-  },
-  {
-    label: 'Three Branch',
-    id: 'three_pairs',
-    file: '/models/snowflake_three_pairs.stl',
-  },
-  {
-    label: 'Longer Branches',
-    id: 'longer_branches',
-    file: '/models/snowflake_longer_branches.stl',
-  },
-]
+const designs = ornamentDesigns
 
 const outerDecorations = [
   { label: 'None', value: 'none' },
@@ -65,27 +50,17 @@ const innerDecorations = [
 // Decoration preview STLs share the base snowflake's mm coordinate
 // frame; 'none' resolves to no extra layer. Inner decorations are
 // style-specific, outer are shared across styles.
-function decorationFiles(designId: string, outer: string, inner: string) {
+function decorationFiles(outer: string, inner: string, styleFile: string) {
   const files: string[] = []
   if (outer !== 'none') files.push(`/models/snowflake_outer_${outer}.stl`)
-  if (inner !== 'none') files.push(`/models/snowflake_inner_${designId}_${inner}.stl`)
+  if (inner !== 'none') {
+    const style = styleFile.match(/snowflake_(\w+)\.stl$/)?.[1]
+    if (style) files.push(`/models/snowflake_inner_${style}_${inner}.stl`)
+  }
   return files
 }
 
-const fonts = [
-  {
-    label: 'Lato Bold',
-    value: 'lato',
-  },
-  {
-    label: 'DejaVu Sans Bold',
-    value: 'dejavu',
-  },
-  {
-    label: 'Caladea Bold',
-    value: 'caladea',
-  },
-]
+
 
 // Font URL mapping for Three.js preview
 // Millimeters of cap height per unit of Name Size in the Houdini HDA.
@@ -96,6 +71,9 @@ const MM_PER_SIZE: Record<string, number> = {
   lato: 8.00,
   dejavu: 8.00,
   caladea: 8.23,
+  // Pasta fonts: initial estimate, to be tuned against the HDA.
+  lobster: 8.00,
+  unifraktur: 8.00,
   // Legacy IDs inherit their replacement font's factor.
   arial: 8.00,
   cambria: 8.23,
@@ -122,6 +100,8 @@ const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   dejavu: '/fonts/DejaVuSans_Bold.json',
   caladea: '/fonts/Caladea_Bold.json',
+  lobster: '/fonts/Lobster_Regular.json',
+  unifraktur: '/fonts/UnifrakturMaguntia_Regular.json',
   // Legacy IDs from saved carts resolve to the same fonts the
   // backend generates for them.
   arial: '/fonts/DejaVuSans_Bold.json',
@@ -252,12 +232,14 @@ function NameAndRails({
   opening,
   textSize,
   selectedFont,
+  rails,
   onLayout,
 }: {
   name: string
   opening: Opening
   textSize: number
   selectedFont: string
+  rails: boolean
   onLayout?: (
     railWidth: number,
     railTop: number,
@@ -322,14 +304,16 @@ function NameAndRails({
     const textHeight = textSizeScaled.y
 
     // HDA rule: rail thickness = 0.2 x rendered text bbox height.
-    const barHeight = textHeight * RAIL_HEIGHT_FRACTION
+    const barHeight = rails ? textHeight * RAIL_HEIGHT_FRACTION : 0
 
     // Rails centered on the capital band edges: letter tops/bottoms
     // overlap the rail inner faces, matching the generated STL where
     // text and rails are boole'd together.
     const verticalPadding = 0
 
-    const railWidth = Math.max(minimumRailWidth, textWidth)
+    const railWidth = rails
+      ? Math.max(minimumRailWidth, textWidth)
+      : textWidth
 
     // Rails follow the capital-letter band (baseline to cap height,
     // measured from an "H" in the same font), not the whole string's
@@ -390,7 +374,7 @@ function NameAndRails({
 
   return (
     <group>
-      {geometry && (
+      {geometry && rails && (
         <>
           <RoundedBox
             args={[railWidth, barHeight, RAIL_DEPTH_MM]}
@@ -437,6 +421,9 @@ function Ornament({
   showName,
   textSize,
   selectedFont,
+  unitScale,
+  rails,
+  clipping,
   onSize,
 }: {
   file: string
@@ -445,6 +432,9 @@ function Ornament({
   showName: boolean
   textSize: number
   selectedFont: string
+  unitScale: number
+  rails: boolean
+  clipping: boolean
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
   const sources = useLoader(STLLoader, [file, ...decorFiles])
@@ -475,15 +465,21 @@ function Ornament({
 
   const { geometry, decorGeometries, opening } = useMemo(() => {
     // Do not center or otherwise mutate useLoader's cached STL.
-    const opening = measureOpening(source)
+    const base = source.clone()
+    // Preview assets may be authored in non-mm units (pasta scene
+    // units); normalize so layout math stays in millimeters.
+    if (unitScale !== 1) base.scale(unitScale, unitScale, unitScale)
+    const opening = measureOpening(base)
 
     // Smooth normals across shallow angles; keep edges >= 60 deg hard.
-    const geometry = toCreasedNormals(source.clone(), Math.PI / 3)
+    const geometry = toCreasedNormals(base, Math.PI / 3)
 
     geometry.computeBoundingBox()
 
     const decorGeometries = sources.slice(1).map((decor) => {
-      const g = toCreasedNormals(decor.clone(), Math.PI / 3)
+      const d = decor.clone()
+      if (unitScale !== 1) d.scale(unitScale, unitScale, unitScale)
+      const g = toCreasedNormals(d, Math.PI / 3)
       g.computeBoundingBox()
       return g
     })
@@ -493,7 +489,7 @@ function Ornament({
       decorGeometries,
       opening,
     }
-  }, [sources, source])
+  }, [sources, source, unitScale])
 
   // STL coordinates are millimeters; union the snowflake bbox with the
   // rail boxes for the approximate finished size.
@@ -543,7 +539,7 @@ function Ornament({
   // the rails inside the band. Every boundary sits a quarter of the
   // rail thickness inside the rail so clipped ends stay hidden.
   const { basePlanes, decorPlanes } = useMemo(() => {
-    if (!railDims || !showName) {
+    if (!clipping || !railDims || !showName) {
       return { basePlanes: null, decorPlanes: null }
     }
     // The ornament group renders at scale 0.05 and is re-centered on
@@ -645,6 +641,7 @@ function Ornament({
               opening={opening}
               textSize={textSize}
               selectedFont={selectedFont}
+              rails={rails}
               onLayout={handleLayout}
             />
           </Suspense>
@@ -774,7 +771,17 @@ export default function App() {
 
   const selectedDesign = designs.find((d) => d.file === selectedModel)
     ?? designs[0]
-  const decorFiles = decorationFiles(selectedDesign.id, outerDecor, innerDecor)
+  const decorFiles = selectedDesign.decorations.length
+    ? decorationFiles(outerDecor, innerDecor, selectedDesign.file)
+    : []
+
+  // Fonts differ per ornament family; fall back to the design's first
+  // font when the current selection isn't offered.
+  useEffect(() => {
+    if (!selectedDesign.fonts.some((f) => f.value === selectedFont)) {
+      setSelectedFont(selectedDesign.fonts[0].value)
+    }
+  }, [selectedDesign, selectedFont])
 
   const [generatedGeom, setGeneratedGeom] =
     useState<BufferGeometry | null>(null)
@@ -1137,6 +1144,8 @@ export default function App() {
             ))}
           </select>
 
+          {selectedDesign.decorations.includes('outer') && (
+          <>
           <label htmlFor="outer-decor">Branch Tips</label>
           <select
             id="outer-decor"
@@ -1149,7 +1158,11 @@ export default function App() {
               </option>
             ))}
           </select>
+          </>
+          )}
 
+          {selectedDesign.decorations.includes('inner') && (
+          <>
           <label htmlFor="inner-decor">Branch Accents</label>
           <select
             id="inner-decor"
@@ -1162,6 +1175,8 @@ export default function App() {
               </option>
             ))}
           </select>
+          </>
+          )}
         </div>
 
         <div className="control-section">
@@ -1212,7 +1227,7 @@ export default function App() {
                 value={selectedFont}
                 onChange={(event) => setSelectedFont(event.target.value)}
               >
-                {fonts.map((font) => (
+                {selectedDesign.fonts.map((font) => (
                   <option key={font.value} value={font.value}>
                     {font.label}
                   </option>
@@ -1370,6 +1385,9 @@ export default function App() {
                   showName={showName}
                   textSize={textSize}
                   selectedFont={selectedFont}
+                  unitScale={selectedDesign.unitScale}
+                  rails={selectedDesign.rails}
+                  clipping={selectedDesign.clipping}
                   onSize={setOrnSize}
                 />
               )}

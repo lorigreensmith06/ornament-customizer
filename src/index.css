@@ -930,6 +930,17 @@ body {
   margin: 0;
 }
 
+/* ---------- Snowflake designs showcase (homepage) ---------- */
+
+.designs-feature {
+  margin-top: 3rem;
+  text-align: center;
+}
+
+.designs-feature .design-grid {
+  margin-top: 0.9rem;
+}
+
 /* ---------- Collection feature (homepage) ---------- */
 
 .collection-feature {

@@ -1,23 +1,6 @@
 import { Link } from 'react-router-dom'
 import ModelThumb, { LazyView } from '../components/ModelThumb'
-
-const snowflakes = [
-  {
-    label: 'Two Branch',
-    file: '/models/snowflake_two_pairs.stl',
-    blurb: 'Classic six-armed snowflake with two pairs of branches.',
-  },
-  {
-    label: 'Three Branch',
-    file: '/models/snowflake_three_pairs.stl',
-    blurb: 'A fuller silhouette with three pairs of branches.',
-  },
-  {
-    label: 'Longer Branches',
-    file: '/models/snowflake_longer_branches.stl',
-    blurb: 'Elegant, elongated arms for a delicate look.',
-  },
-]
+import { ornamentDesigns } from '../data/designs'
 
 export default function ExplorePage() {
   return (
@@ -34,7 +17,7 @@ export default function ExplorePage() {
         watch the 3D preview update live.
       </p>
       <div className="design-grid">
-        {snowflakes.map((design) => (
+        {ornamentDesigns.map((design) => (
           <Link
             key={design.file}
             className="design-card"

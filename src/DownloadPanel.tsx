@@ -2,15 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { downloadOrderItem as fetchOrderItemDownload } from './orders'
+import { ornamentDesigns } from './data/designs'
 
 export const API = import.meta.env.DEV
   ? (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
   : 'https://api.ornamentcreator.com'
 
-const DESIGN_IDS: Record<string, string> = {
-  '/models/snowflake_two_pairs.stl': 'two_branch',
-  '/models/snowflake_three_pairs.stl': 'three_branch',
-  '/models/snowflake_longer_branches.stl': 'longer_branches',
+function designFor(file: string) {
+  return ornamentDesigns.find((d) => d.file === file)
 }
 
 type Job = {
@@ -96,20 +95,24 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     setSuccess(false)
     setMessage('Submitting…')
     try {
-      const design = DESIGN_IDS[selectedModel]
+      const design = designFor(selectedModel)
       if (!design) throw new Error('No generator mapping for this design.')
+      const body: Record<string, unknown> = {
+        name: showName ? name.trim() : '',
+        ornament: design.ornament,
+        show_text: showName,
+        font_style: selectedFont,
+        font_size: textSize,
+      }
+      if (design.backendDesign) {
+        body.snowflake_design = design.backendDesign
+        body.outer_decoration = outerDecoration ?? 'none'
+        body.inner_decoration = innerDecoration ?? 'none'
+      }
       const created = await readResponse(await fetch(`${API}/api/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: showName ? name.trim() : '',
-          snowflake_design: design,
-          show_text: showName,
-          font_style: selectedFont,
-          font_size: textSize,
-          outer_decoration: outerDecoration ?? 'none',
-          inner_decoration: innerDecoration ?? 'none',
-        }),
+        body: JSON.stringify(body),
         signal,
       })) as { id: string }
 

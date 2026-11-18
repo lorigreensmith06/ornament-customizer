@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import heroImg from '../assets/ornament_main_image.png'
 import { galleryPhotos } from '../data/gallery'
+import { ornamentDesigns } from '../data/designs'
 import AlphabetPreview from '../components/AlphabetPreview'
-import { LazyView } from '../components/ModelThumb'
+import ModelThumb, { LazyView } from '../components/ModelThumb'
 
 const features = [
   {
@@ -73,6 +74,33 @@ export default function HomePage() {
               Shop Ornaments
             </Link>
           </div>
+        </div>
+      </section>
+
+      <section className="designs-feature" aria-label="Snowflake designs">
+        <h2 className="collection-heading">Personalized Snowflakes</h2>
+        <p className="collection-sub">
+          Two snowflake designs — pick a base, add a name, and make it
+          yours.
+        </p>
+        <div className="design-grid">
+          {ornamentDesigns
+            .filter((d) => d.file === '/models/snowflake_two_pairs.stl'
+              || d.ornament === 'pasta')
+            .map((design) => (
+              <Link
+                key={design.file}
+                className="design-card"
+                to={`/create?design=${encodeURIComponent(design.file)}`}
+              >
+                <LazyView className="design-thumb design-thumb-3d">
+                  <ModelThumb file={design.file} />
+                </LazyView>
+                <span className="design-name">{design.label}</span>
+                <span className="design-blurb">{design.blurb}</span>
+                <span className="design-cta">Customize →</span>
+              </Link>
+            ))}
         </div>
       </section>
 
