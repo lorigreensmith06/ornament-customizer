@@ -18,6 +18,9 @@
 //   flipNormals  STL winding is reversed; flip normals at load
 //   textDepth    name extrusion depth in display-mm; defaults to the
 //                classic measured 5.55 mm
+//   textSideExpand  lateral outline expansion in font units —
+//                scales with the rendered letter height
+//   textSideDepth   z-depth of that widened rim in display-mm
 
 export type OrnamentId = 'classic' | 'pasta'
 
@@ -34,6 +37,8 @@ export interface OrnamentDesign {
   clipping: boolean
   flipNormals: boolean
   textDepth?: number
+  textSideExpand?: number
+  textSideDepth?: number
 }
 
 const classicFonts = [
@@ -105,5 +110,11 @@ export const ornamentDesigns: OrnamentDesign[] = [
     // polyextrude_font dist = 0.15 scene units; at unitScale 70 the
     // lettering protrudes past the ~6.9 mm pasta face like the HDA.
     textDepth: 10.5,
+    // polyextrude_side_close dist = 0.075 font units (~11% of the
+    // letter height), matching the HDA proportion.
+    textSideExpand: 0.075,
+    // Rim spans most of the extrusion, stopping short of the front
+    // face — the HDA side walls run the lettering's full depth.
+    textSideDepth: 9.0,
   },
 ]

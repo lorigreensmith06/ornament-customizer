@@ -254,6 +254,8 @@ function NameAndRails({
   selectedFont,
   rails,
   textDepth = TEXT_DEPTH_MM,
+  textSideExpand = 0,
+  textSideDepth = 0,
   onLayout,
 }: {
   name: string
@@ -262,6 +264,11 @@ function NameAndRails({
   selectedFont: string
   rails: boolean
   textDepth?: number
+  // Lateral outline expansion (mm) and the shallow rim's z-depth
+  // (mm) — pasta's polyextrude_side_close widened lettering near
+  // its base while the original extrusion keeps full depth.
+  textSideExpand?: number
+  textSideDepth?: number
   onLayout?: (
     railWidth: number,
     railTop: number,
@@ -272,7 +279,7 @@ function NameAndRails({
   // Use the selected font for preview
   const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
 
-  const { geometry, railWidth, railTop, railBottom, barHeight } = useMemo(() => {
+  const { geometry, sideGeometry, railWidth, railTop, railBottom, barHeight } = useMemo(() => {
     const text = name.trim()
 
     // Houdini's rule: rails are at least 80% of the snowflake width.
@@ -288,6 +295,10 @@ function NameAndRails({
       }
     }
 
+    // Absolute scale in millimeters matching the HDA's font_size,
+    // so each font keeps its natural cap-height/em ratio.
+    const finalScale = textSize * (MM_PER_SIZE[selectedFont] ?? 8.00)
+
     const result = new TextGeometry(text, {
       font,
       size: 1,
@@ -295,6 +306,25 @@ function NameAndRails({
       curveSegments: 12,
       bevelEnabled: false,
     })
+
+    // Shallow rim behind the lettering's base reproducing the HDA's
+    // polyextrude_side_close: outline offset outward via bevelSize
+    // (zero z-thickness), clamped to a fraction of the extrusion.
+    let sideGeometry: TextGeometry | null = null
+    if (textSideExpand > 0 && textSideDepth > 0) {
+      sideGeometry = new TextGeometry(text, {
+        font,
+        size: 1,
+        depth: textSideDepth,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0,
+        // Expansion is in font units so it scales with the rendered
+        // letter height (0.075 matches the HDA side-close dist).
+        bevelSize: textSideExpand,
+        bevelSegments: 1,
+      })
+    }
 
     result.computeBoundingBox()
 
@@ -311,10 +341,6 @@ function NameAndRails({
         barHeight: opening.barHeight,
       }
     }
-
-    // Absolute scale in millimeters matching the HDA's font_size,
-    // so each font keeps its natural cap-height/em ratio.
-    const finalScale = textSize * (MM_PER_SIZE[selectedFont] ?? 8.00)
 
     result.scale(finalScale, finalScale, 1)
 
@@ -374,20 +400,35 @@ function NameAndRails({
       -boundsCenter.z,
     )
 
+    if (sideGeometry) {
+      sideGeometry.scale(finalScale, finalScale, 1)
+      sideGeometry.computeBoundingBox()
+      const sideCenter = sideGeometry.boundingBox!.getCenter(
+        new Vector3())
+      sideGeometry.translate(
+        -sideCenter.x,
+        -(bandTop + bandBottom) / 2,
+        -sideCenter.z,
+      )
+    }
+
     return {
       geometry: result,
+      sideGeometry,
       railWidth,
       railTop,
       railBottom,
       barHeight,
     }
-  }, [font, name, opening, textSize, selectedFont])
+  }, [font, name, opening, textSize, selectedFont,
+      textDepth, textSideExpand, textSideDepth])
 
   useEffect(() => {
     return () => {
       geometry?.dispose()
+      sideGeometry?.dispose()
     }
-  }, [geometry])
+  }, [geometry, sideGeometry])
 
   // Report the rail footprint so the ornament can report its overall size.
   useEffect(() => {
@@ -432,6 +473,20 @@ function NameAndRails({
           <GoldMaterial />
         </mesh>
       )}
+
+      {sideGeometry && (
+        <mesh
+          geometry={sideGeometry}
+          position={[
+            opening.x,
+            opening.y,
+            // The widened rim hugs the lettering's back end.
+            opening.z - opening.depth / 2 + textSideDepth / 2,
+          ]}
+        >
+          <GoldMaterial />
+        </mesh>
+      )}
     </group>
   )
 }
@@ -448,6 +503,8 @@ function Ornament({
   clipping,
   flipNormals,
   textDepth,
+  textSideExpand,
+  textSideDepth,
   onSize,
 }: {
   file: string
@@ -461,6 +518,8 @@ function Ornament({
   clipping: boolean
   flipNormals: boolean
   textDepth?: number
+  textSideExpand?: number
+  textSideDepth?: number
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
   const sources = useLoader(STLLoader, [file, ...decorFiles])
@@ -671,6 +730,8 @@ function Ornament({
               selectedFont={selectedFont}
               rails={rails}
               textDepth={textDepth}
+              textSideExpand={textSideExpand}
+              textSideDepth={textSideDepth}
               onLayout={handleLayout}
             />
           </Suspense>
@@ -1419,6 +1480,8 @@ export default function App() {
                   clipping={selectedDesign.clipping}
                   flipNormals={selectedDesign.flipNormals}
                   textDepth={selectedDesign.textDepth}
+                  textSideExpand={selectedDesign.textSideExpand}
+                  textSideDepth={selectedDesign.textSideDepth}
                   onSize={setOrnSize}
                 />
               )}
