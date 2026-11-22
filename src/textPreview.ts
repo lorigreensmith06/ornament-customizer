@@ -55,8 +55,11 @@ export function createTextPreview(
       depth,
       curveSegments: 24,
       bevelEnabled: expansion > 0,
+      // Use the same offset on the caps and walls. A bevel size at
+      // zero thickness adds a coplanar strip around each cap.
       bevelThickness: 0,
-      bevelSize: expansion,
+      bevelSize: 0,
+      bevelOffset: expansion,
       bevelSegments: 1,
     })
     geometry.translate(x, y, backZ)
