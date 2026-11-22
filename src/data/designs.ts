@@ -113,6 +113,7 @@ export const ornamentDesigns: OrnamentDesign[] = [
       anchor: [0.5, 0.5],
       // Measured in the STL after clipping and the 0.75 Z transform.
       depthMm: 6.1875,
+      edgeBevelMm: 0.1,
       rim: { expansionMm: 0.06 * 0.25 * 60, depthMm: 5.34375 },
     },
   },

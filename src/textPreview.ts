@@ -3,6 +3,7 @@ import {
   type Path,
 } from 'three'
 import type { Font } from 'three/examples/jsm/loaders/FontLoader.js'
+import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 export interface TextPreviewProfile {
   fontUrls: Readonly<Record<string, string>>
@@ -12,6 +13,7 @@ export interface TextPreviewProfile {
   // baseline to the outline top in Y, matching the Font SOP alignment.
   anchor: [x: number, y: number]
   depthMm: number
+  edgeBevelMm?: number
   rim?: { expansionMm: number; depthMm: number }
 }
 
@@ -50,24 +52,24 @@ export function createTextPreview(
   const [originX, originY, backZ] = profile.originMm
   const x = originX - (outline.min.x + (outline.max.x - outline.min.x) * anchorX)
   const y = originY - outline.max.y * anchorY
-  const extrude = (depth: number, expansion = 0) => {
+  const extrude = (depth: number, expansion = 0, bevel = 0) => {
     const geometry = new ExtrudeGeometry(shapes, {
-      depth,
-      curveSegments: 24,
-      bevelEnabled: expansion > 0,
-      // Use the same offset on the caps and walls. A bevel size at
-      // zero thickness adds a coplanar strip around each cap.
-      bevelThickness: 0,
-      bevelSize: 0,
-      bevelOffset: expansion,
-      bevelSegments: 1,
+      depth: depth - 2 * bevel,
+      curveSegments: 32,
+      bevelEnabled: expansion > 0 || bevel > 0,
+      bevelThickness: bevel,
+      bevelSize: bevel,
+      // Inset the cap so the outside dimensions stay the same.
+      bevelOffset: expansion - bevel,
+      bevelSegments: bevel > 0 ? 2 : 1,
     })
-    geometry.translate(x, y, backZ)
-    geometry.computeBoundingBox()
-    return geometry
+    geometry.translate(x, y, backZ + bevel)
+    const shaded = bevel > 0 ? toCreasedNormals(geometry) : geometry
+    shaded.computeBoundingBox()
+    return shaded
   }
 
-  const geometry = extrude(profile.depthMm)
+  const geometry = extrude(profile.depthMm, 0, profile.edgeBevelMm)
   const sideGeometry = profile.rim
     ? extrude(profile.rim.depthMm, profile.rim.expansionMm)
     : null
