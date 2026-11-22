@@ -440,11 +440,11 @@ function ProfiledText({ name, textSize, fontUrl, profile, onBounds }: {
 
   return (
     <group>
-      <mesh geometry={text.geometry}>
+      <mesh geometry={text.geometry} castShadow>
         <GoldMaterial />
       </mesh>
       {text.sideGeometry && (
-        <mesh geometry={text.sideGeometry}>
+        <mesh geometry={text.sideGeometry} receiveShadow>
           <GoldMaterial />
         </mesh>
       )}
@@ -663,7 +663,7 @@ function Ornament({
             </mesh>
           ))
         ) : (
-          <mesh geometry={geometry}>
+          <mesh geometry={geometry} receiveShadow={Boolean(textPreview)}>
             <meshStandardMaterial {...goldProps} />
           </mesh>
         )}
@@ -1170,6 +1170,9 @@ export default function App() {
   }, [])
 
   const showingGenerated = generatedGeom != null && viewGenerated
+  const showLetterShadows = isPasta && showName && !showingGenerated
+  // The ornament uses 0.05 scene units per millimeter.
+  const shadowExtent = Math.max(3, Math.max(ornSize?.x ?? 0, ornSize?.y ?? 0) * 0.025 + 0.5)
   const changesPending = generatedGeom != null && generatedKey !== paramsKey
   // downloadUrl stays cached across param changes; the artifact only
   // matches the current customization when generatedKey === paramsKey.
@@ -1411,6 +1414,8 @@ export default function App() {
           key={selectedModel}
         >
           <Canvas
+            shadows={isPasta ? 'percentage' : false}
+            frameloop={isPasta ? 'demand' : 'always'}
             camera={{
               position: [0, 0, 9],
               fov: 40,
@@ -1432,7 +1437,20 @@ export default function App() {
             <directionalLight
               position={isPasta ? [-1.5, 2.5, 6] : [3, 4, 6]}
               intensity={isPasta ? 2.6 : 2}
-            />
+              castShadow={showLetterShadows}
+              shadow-mapSize={[1024, 1024]}
+              shadow-normalBias={0.003}
+              shadow-bias={-0.0001}
+              shadow-radius={2}
+              shadow-intensity={0.65}
+            >
+              {showLetterShadows && (
+                <orthographicCamera
+                  attach="shadow-camera"
+                  args={[-shadowExtent, shadowExtent, shadowExtent, -shadowExtent, 0.5, 18]}
+                />
+              )}
+            </directionalLight>
 
             <directionalLight
               position={isPasta ? [3, -2, 2] : [-3, -2, 2]}
