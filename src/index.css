@@ -409,6 +409,13 @@ body {
   cursor: default;
 }
 
+.gallery-controls .gallery-autoplay {
+  width: auto;
+  padding: 0 0.9rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+}
+
 .gallery-track:focus-visible,
 .gallery-controls button:focus-visible {
   outline: 2px solid var(--ink);

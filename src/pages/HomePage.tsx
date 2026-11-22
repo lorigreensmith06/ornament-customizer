@@ -52,6 +52,9 @@ export default function HomePage() {
   const galleryTrack = useRef<HTMLDivElement>(null)
   const [atStart, setAtStart] = useState(true)
   const [atEnd, setAtEnd] = useState(galleryPhotos.length <= 1)
+  const [autoAdvance, setAutoAdvance] = useState(
+    () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
 
   const updateGalleryControls = useCallback(() => {
     const track = galleryTrack.current
@@ -68,14 +71,31 @@ export default function HomePage() {
     return () => observer.disconnect()
   }, [updateGalleryControls])
 
-  function moveGallery(direction: -1 | 1) {
+  const moveGallery = useCallback((direction: -1 | 1, wrap = false) => {
     const track = galleryTrack.current
     const first = track?.children[0]
     const second = track?.children[1]
     if (!track || !first || !second) return
+    if (wrap && track.scrollWidth - track.clientWidth - track.scrollLeft <= 1) {
+      track.scrollTo({ left: 0 })
+      return
+    }
     const step = second.getBoundingClientRect().left - first.getBoundingClientRect().left
     track.scrollBy({ left: step * direction })
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!autoAdvance) return
+    const timer = window.setInterval(() => {
+      const track = galleryTrack.current
+      if (!track || document.hidden || track.matches(':focus-within')) return
+      if (window.matchMedia('(hover: hover)').matches && track.matches(':hover')) return
+      const bounds = track.getBoundingClientRect()
+      if (bounds.bottom <= 0 || bounds.top >= window.innerHeight) return
+      moveGallery(1, true)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [autoAdvance, moveGallery])
 
   return (
     <div className="home">
@@ -196,6 +216,12 @@ export default function HomePage() {
             aria-controls="printed-ornament-photos" disabled={atEnd}
             onClick={() => moveGallery(1)}>
             <span aria-hidden="true">→</span>
+          </button>
+          <button type="button" className="gallery-autoplay"
+            aria-label={autoAdvance ? 'Pause automatic scrolling' : 'Start automatic scrolling'}
+            aria-controls="printed-ornament-photos"
+            onClick={() => setAutoAdvance((enabled) => !enabled)}>
+            {autoAdvance ? 'Pause' : 'Auto-scroll'}
           </button>
         </div>
         <Link className="hero-cta" to="/create">
