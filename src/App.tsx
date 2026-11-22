@@ -805,8 +805,7 @@ export default function App() {
   const [showName, setShowName] =
     useState(true)
 
-  const [enteredName, setEnteredName] =
-    useState('THE SMITHS')
+  const [enteredName, setEnteredName] = useState<string | null>(null)
 
   const [selectedFont, setSelectedFont] =
     useState('lato')
@@ -832,7 +831,8 @@ export default function App() {
   const selectedDesign = designs.find((d) => d.file === selectedModel)
     ?? designs[0]
   const allowsLowercase = selectedDesign.ornament === 'pasta'
-  const name = allowsLowercase ? enteredName : enteredName.toUpperCase()
+  const displayName = enteredName ?? (allowsLowercase ? 'Ashley' : 'THE SMITHS')
+  const name = allowsLowercase ? displayName : displayName.toUpperCase()
 
   const paramsKey = JSON.stringify({
     name, selectedModel, showName, selectedFont, textSize,
