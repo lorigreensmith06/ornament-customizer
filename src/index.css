@@ -1249,7 +1249,7 @@ body {
   }
 
   .gallery-item {
-    flex-basis: 88%;
+    flex-basis: 100%;
   }
 
   .gallery-inner {
