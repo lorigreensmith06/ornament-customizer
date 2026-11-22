@@ -36,6 +36,7 @@ export interface OrnamentDesign {
   decorations: ('outer' | 'inner')[]
   clipping: boolean
   flipNormals: boolean
+  textMillimetersPerEm?: number
   textDepth?: number
   textSideExpand?: number
   textSideDepth?: number
@@ -51,6 +52,7 @@ const pastaFonts = [
   { label: 'Caladea Bold', value: 'caladea' },
   { label: 'Unifraktur Maguntia', value: 'unifraktur' },
   { label: 'Lobster', value: 'lobster' },
+  { label: 'Oleo Script', value: 'oleo' },
 ]
 
 export const ornamentDesigns: OrnamentDesign[] = [
@@ -98,23 +100,19 @@ export const ornamentDesigns: OrnamentDesign[] = [
     file: '/models/snowflake_pasta/snowflake_pasta_no_text_v01.stl',
     blurb: 'A whimsical noodle-built snowflake with playful texture.',
     ornament: 'pasta',
-    // Preview STL is in Houdini scene units (~1.1 wide); scale to
-    // roughly the classic ornaments' ~78 mm width for display.
-    unitScale: 70,
+    // This stable asset URL now serves the v2 no-text export in STL mm.
+    unitScale: 1,
     fonts: pastaFonts,
     rails: false,
     decorations: [],
     clipping: false,
-    // Exported pasta STL triangles wind inward; flip at load.
-    flipNormals: true,
-    // polyextrude_font dist = 0.15 scene units; at unitScale 70 the
-    // lettering protrudes past the ~6.9 mm pasta face like the HDA.
-    textDepth: 10.5,
-    // polyextrude_side_close dist = 0.075 font units (~11% of the
-    // letter height), matching the HDA proportion.
-    textSideExpand: 0.075,
-    // Rim spans most of the extrusion, stopping short of the front
-    // face — the HDA side walls run the lettering's full depth.
-    textSideDepth: 9.0,
+    flipNormals: false,
+    // Font SOP size 1 is one em. The text transform scales by 0.25
+    // and the final STL transform scales XY by 60.
+    textMillimetersPerEm: 0.25 * 60,
+    // Measured from the v2 STL after the back clip and Z transform.
+    textDepth: 6.1875,
+    textSideExpand: 0.06 * 0.25 * 60,
+    textSideDepth: 5.34375,
   },
 ]

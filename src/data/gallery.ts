@@ -27,4 +27,9 @@ export const galleryPhotos: GalleryEntry[] = [
     image: '/gallery/ornament-richard.webp',
     alt: '3D-printed gold snowflake ornament with the name RICHARD, hanging by a red ribbon on a Christmas tree',
   },
+  {
+    image: '/gallery/snowflake_pasta_ornament.JPEG',
+    alt: 'Printed Pasta Snowflake ornament',
+    link: '/explore',
+  },
 ]

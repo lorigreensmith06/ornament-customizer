@@ -63,17 +63,14 @@ function decorationFiles(outer: string, inner: string, styleFile: string) {
 
 
 // Font URL mapping for Three.js preview
-// Millimeters of cap height per unit of Name Size in the Houdini HDA.
+// Millimeters per em per unit of Name Size for the rail HDA.
 // Anchored on generated STLs: Lato/DejaVu match at 8.00; Caladea's
 // JSON metrics run ~3% narrow vs the installed TTF (rail_w 63.05 vs
 // preview 61.26 at size 1), so it gets its own factor.
-const MM_PER_SIZE: Record<string, number> = {
+const RAIL_MM_PER_EM: Record<string, number> = {
   lato: 8.00,
   dejavu: 8.00,
   caladea: 8.23,
-  // Pasta fonts: initial estimate, to be tuned against the HDA.
-  lobster: 8.00,
-  unifraktur: 8.00,
   // Legacy IDs inherit their replacement font's factor.
   arial: 8.00,
   cambria: 8.23,
@@ -101,6 +98,7 @@ const fontUrls: Record<string, string> = {
   dejavu: '/fonts/DejaVuSans_Bold.json',
   caladea: '/fonts/Caladea_Bold.json',
   lobster: '/fonts/Lobster_Regular.json',
+  oleo: '/fonts/PastaSwash_Bold.json',
   unifraktur: '/fonts/UnifrakturMaguntia_Regular.json',
   // Legacy IDs from saved carts resolve to the same fonts the
   // backend generates for them.
@@ -253,6 +251,7 @@ function NameAndRails({
   textSize,
   selectedFont,
   rails,
+  textMillimetersPerEm,
   textDepth = TEXT_DEPTH_MM,
   textSideExpand = 0,
   textSideDepth = 0,
@@ -263,10 +262,8 @@ function NameAndRails({
   textSize: number
   selectedFont: string
   rails: boolean
+  textMillimetersPerEm?: number
   textDepth?: number
-  // Lateral outline expansion (mm) and the shallow rim's z-depth
-  // (mm) — pasta's polyextrude_side_close widened lettering near
-  // its base while the original extrusion keeps full depth.
   textSideExpand?: number
   textSideDepth?: number
   onLayout?: (
@@ -277,7 +274,12 @@ function NameAndRails({
   ) => void
 }) {
   // Use the selected font for preview
-  const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
+  const fontUrl = !rails && selectedFont === 'caladea'
+    ? '/fonts/Caladea_Pasta_Bold.json'
+    : fontUrls[selectedFont] || fontUrls.lato
+  const font = useLoader(FontLoader, fontUrl)
+  const textX = rails ? opening.x : 0
+  const textY = rails ? opening.y : 0
 
   const { geometry, sideGeometry, railWidth, railTop, railBottom, barHeight } = useMemo(() => {
     const text = name.trim()
@@ -288,16 +290,15 @@ function NameAndRails({
     if (!text) {
       return {
         geometry: null,
-        railWidth: minimumRailWidth,
+        railWidth: rails ? minimumRailWidth : 0,
         railTop: opening.top,
         railBottom: opening.bottom,
         barHeight: opening.barHeight,
       }
     }
 
-    // Absolute scale in millimeters matching the HDA's font_size,
-    // so each font keeps its natural cap-height/em ratio.
-    const finalScale = textSize * (MM_PER_SIZE[selectedFont] ?? 8.00)
+    const finalScale = textSize
+      * (textMillimetersPerEm ?? RAIL_MM_PER_EM[selectedFont] ?? 8)
 
     const result = new TextGeometry(text, {
       font,
@@ -306,25 +307,6 @@ function NameAndRails({
       curveSegments: 12,
       bevelEnabled: false,
     })
-
-    // Shallow rim behind the lettering's base reproducing the HDA's
-    // polyextrude_side_close: outline offset outward via bevelSize
-    // (zero z-thickness), clamped to a fraction of the extrusion.
-    let sideGeometry: TextGeometry | null = null
-    if (textSideExpand > 0 && textSideDepth > 0) {
-      sideGeometry = new TextGeometry(text, {
-        font,
-        size: 1,
-        depth: textSideDepth,
-        curveSegments: 12,
-        bevelEnabled: true,
-        bevelThickness: 0,
-        // Expansion is in font units so it scales with the rendered
-        // letter height (0.075 matches the HDA side-close dist).
-        bevelSize: textSideExpand,
-        bevelSegments: 1,
-      })
-    }
 
     result.computeBoundingBox()
 
@@ -335,7 +317,7 @@ function NameAndRails({
 
       return {
         geometry: null,
-        railWidth: minimumRailWidth,
+        railWidth: rails ? minimumRailWidth : 0,
         railTop: opening.top,
         railBottom: opening.bottom,
         barHeight: opening.barHeight,
@@ -357,8 +339,6 @@ function NameAndRails({
     // Rails centered on the capital band edges: letter tops/bottoms
     // overlap the rail inner faces, matching the generated STL where
     // text and rails are boole'd together.
-    const verticalPadding = 0
-
     const railWidth = rails
       ? Math.max(minimumRailWidth, textWidth)
       : textWidth
@@ -387,41 +367,49 @@ function NameAndRails({
     const bandTop = hasCapBand ? capTop : result.boundingBox!.max.y
     const bandHeight = bandTop - bandBottom
 
-    const railTop = opening.y + bandHeight / 2 + verticalPadding
-    const railBottom = opening.y - bandHeight / 2 - verticalPadding
+    const bounds = result.boundingBox!
+    const boundsCenter = bounds.getCenter(new Vector3())
+    // The pasta Font SOP aligns relative to the baseline and top of
+    // the string. Preserve descenders below the aligned letter band.
+    const verticalCenter = rails ? (bandTop + bandBottom) / 2 : bounds.max.y / 2
+    const textTop = bounds.max.y - verticalCenter
+    const textBottom = bounds.min.y - verticalCenter
+    result.translate(-boundsCenter.x, -verticalCenter, -boundsCenter.z)
 
-    // Center horizontally and in depth on the text's own bounds, and
-    // vertically on the capital band the rails were placed from.
-    const boundsCenter = result.boundingBox!.getCenter(new Vector3())
-
-    result.translate(
-      -boundsCenter.x,
-      -(bandTop + bandBottom) / 2,
-      -boundsCenter.z,
-    )
+    // Approximate the HDA's fixed-width planar outline expansion.
+    let sideGeometry: TextGeometry | null = null
+    if (textSideExpand > 0 && textSideDepth > 0) {
+      sideGeometry = new TextGeometry(text, {
+        font,
+        size: 1,
+        depth: textSideDepth,
+        curveSegments: 12,
+        bevelEnabled: true,
+        bevelThickness: 0,
+        bevelSize: textSideExpand / finalScale,
+        bevelSegments: 1,
+      })
+    }
 
     if (sideGeometry) {
       sideGeometry.scale(finalScale, finalScale, 1)
+      sideGeometry.translate(-boundsCenter.x, -verticalCenter, -textSideDepth / 2)
       sideGeometry.computeBoundingBox()
-      const sideCenter = sideGeometry.boundingBox!.getCenter(
-        new Vector3())
-      sideGeometry.translate(
-        -sideCenter.x,
-        -(bandTop + bandBottom) / 2,
-        -sideCenter.z,
-      )
     }
 
+    const sideBounds = sideGeometry?.boundingBox
     return {
       geometry: result,
       sideGeometry,
-      railWidth,
-      railTop,
-      railBottom,
+      railWidth: rails ? railWidth : Math.max(
+        textWidth, 2 * Math.abs(sideBounds?.min.x ?? 0), 2 * Math.abs(sideBounds?.max.x ?? 0),
+      ),
+      railTop: rails ? opening.y + bandHeight / 2 : Math.max(textTop, sideBounds?.max.y ?? textTop),
+      railBottom: rails ? opening.y - bandHeight / 2 : Math.min(textBottom, sideBounds?.min.y ?? textBottom),
       barHeight,
     }
-  }, [font, name, opening, textSize, selectedFont,
-      textDepth, textSideExpand, textSideDepth])
+  }, [font, name, opening, textSize, selectedFont, rails,
+      textMillimetersPerEm, textDepth, textSideExpand, textSideDepth])
 
   useEffect(() => {
     return () => {
@@ -463,8 +451,8 @@ function NameAndRails({
         <mesh
           geometry={geometry}
           position={[
-            opening.x,
-            opening.y,
+            textX,
+            textY,
             // Text extrudes forward from the ornament's back plane
             // (z = 0); the centered geometry starts at back + depth/2.
             opening.z - opening.depth / 2 + textDepth / 2,
@@ -478,8 +466,8 @@ function NameAndRails({
         <mesh
           geometry={sideGeometry}
           position={[
-            opening.x,
-            opening.y,
+            textX,
+            textY,
             // The widened rim hugs the lettering's back end.
             opening.z - opening.depth / 2 + textSideDepth / 2,
           ]}
@@ -502,6 +490,7 @@ function Ornament({
   rails,
   clipping,
   flipNormals,
+  textMillimetersPerEm,
   textDepth,
   textSideExpand,
   textSideDepth,
@@ -517,6 +506,7 @@ function Ornament({
   rails: boolean
   clipping: boolean
   flipNormals: boolean
+  textMillimetersPerEm?: number
   textDepth?: number
   textSideExpand?: number
   textSideDepth?: number
@@ -598,9 +588,10 @@ function Ornament({
 
     if (showName && railDims) {
       const halfWidth = railDims.width / 2
-      const halfBar = opening.barHeight / 2
-      minX = Math.min(minX, opening.x - halfWidth)
-      maxX = Math.max(maxX, opening.x + halfWidth)
+      const halfBar = rails ? opening.barHeight / 2 : 0
+      const textX = rails ? opening.x : 0
+      minX = Math.min(minX, textX - halfWidth)
+      maxX = Math.max(maxX, textX + halfWidth)
       minY = Math.min(minY, railDims.bottom - halfBar)
       maxY = Math.max(maxY, railDims.top + halfBar)
     }
@@ -608,9 +599,10 @@ function Ornament({
     onSize({
       x: maxX - minX,
       y: maxY - minY,
-      z: bounds.max.z - bounds.min.z,
+      z: Math.max(bounds.max.z - bounds.min.z,
+        !rails && showName && railDims?.width ? textDepth ?? 0 : 0),
     })
-  }, [geometry, decorGeometries, opening, showName, railDims, onSize])
+  }, [geometry, decorGeometries, opening, showName, railDims, rails, textDepth, onSize])
 
   useEffect(() => {
     return () => {
@@ -729,6 +721,7 @@ function Ornament({
               textSize={textSize}
               selectedFont={selectedFont}
               rails={rails}
+              textMillimetersPerEm={textMillimetersPerEm}
               textDepth={textDepth}
               textSideExpand={textSideExpand}
               textSideDepth={textSideDepth}
@@ -830,7 +823,7 @@ export default function App() {
   const [showName, setShowName] =
     useState(true)
 
-  const [name, setName] =
+  const [enteredName, setEnteredName] =
     useState('THE SMITHS')
 
   const [selectedFont, setSelectedFont] =
@@ -854,13 +847,16 @@ export default function App() {
   const [ornSize, setOrnSize] =
     useState<{ x: number; y: number; z: number } | null>(null)
 
+  const selectedDesign = designs.find((d) => d.file === selectedModel)
+    ?? designs[0]
+  const allowsLowercase = selectedDesign.ornament === 'pasta'
+  const name = allowsLowercase ? enteredName : enteredName.toUpperCase()
+
   const paramsKey = JSON.stringify({
     name, selectedModel, showName, selectedFont, textSize,
     outerDecor, innerDecor,
   })
 
-  const selectedDesign = designs.find((d) => d.file === selectedModel)
-    ?? designs[0]
   const decorFiles = selectedDesign.decorations.length
     ? decorationFiles(outerDecor, innerDecor, selectedDesign.file)
     : []
@@ -1156,7 +1152,7 @@ export default function App() {
             { order_id, key: access_token, dismissed: true }))
           recordOrder(order_id, access_token)
         }
-        setName(s.name)
+        setEnteredName(s.name)
         setSelectedModel(s.selectedModel)
         setShowName(s.showName)
         setSelectedFont(s.selectedFont)
@@ -1293,19 +1289,19 @@ export default function App() {
                 aria-describedby="name-help"
                 data-clarity-mask="true"
                 onChange={(event) =>
-                  setName(
-                    event.target.value
-                      .toUpperCase()
-                      .replace(/[^A-Z0-9 '\-]/g, ''),
+                  setEnteredName(
+                    (allowsLowercase ? event.target.value : event.target.value.toUpperCase())
+                      .replace(/[^A-Za-z0-9 '\-]/g, '')
+                      .slice(0, 24),
                   )
                 }
               />
 
               <small id="name-help" className="help-text">
-                24 characters max · letters, numbers, and spaces only.
+                24 characters max · letters, numbers, spaces, apostrophes, and hyphens.
               </small>
 
-              {name !== '' && !/[A-Z0-9]/.test(name) && (
+              {name !== '' && !/[A-Za-z0-9]/.test(name) && (
                 <small className="field-error" role="alert">
                   Please enter at least one letter or number.
                 </small>
@@ -1479,6 +1475,7 @@ export default function App() {
                   rails={selectedDesign.rails}
                   clipping={selectedDesign.clipping}
                   flipNormals={selectedDesign.flipNormals}
+                  textMillimetersPerEm={selectedDesign.textMillimetersPerEm}
                   textDepth={selectedDesign.textDepth}
                   textSideExpand={selectedDesign.textSideExpand}
                   textSideDepth={selectedDesign.textSideDepth}
