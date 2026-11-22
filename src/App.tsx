@@ -4,7 +4,7 @@ import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls, RoundedBox } from '@react-three/drei'
 import { Vector3 } from 'three'
 import { ACESFilmicToneMapping, Plane } from 'three'
-import type { BufferGeometry } from 'three'
+import type { Box3, BufferGeometry } from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
@@ -31,6 +31,7 @@ import Footer from './components/Footer'
 import CookieConsent from './components/CookieConsent'
 import { initAnalytics, trackPageView } from './analytics'
 import { ornamentDesigns } from './data/designs'
+import { createTextPreview, type TextPreviewProfile } from './textPreview'
 
 const designs = ornamentDesigns
 
@@ -97,9 +98,6 @@ const fontUrls: Record<string, string> = {
   lato: '/fonts/Lato_Bold.json',
   dejavu: '/fonts/DejaVuSans_Bold.json',
   caladea: '/fonts/Caladea_Bold.json',
-  lobster: '/fonts/Lobster_Regular.json',
-  oleo: '/fonts/PastaSwash_Bold.json',
-  unifraktur: '/fonts/UnifrakturMaguntia_Regular.json',
   // Legacy IDs from saved carts resolve to the same fonts the
   // backend generates for them.
   arial: '/fonts/DejaVuSans_Bold.json',
@@ -251,10 +249,6 @@ function NameAndRails({
   textSize,
   selectedFont,
   rails,
-  textMillimetersPerEm,
-  textDepth = TEXT_DEPTH_MM,
-  textSideExpand = 0,
-  textSideDepth = 0,
   onLayout,
 }: {
   name: string
@@ -262,10 +256,6 @@ function NameAndRails({
   textSize: number
   selectedFont: string
   rails: boolean
-  textMillimetersPerEm?: number
-  textDepth?: number
-  textSideExpand?: number
-  textSideDepth?: number
   onLayout?: (
     railWidth: number,
     railTop: number,
@@ -274,14 +264,9 @@ function NameAndRails({
   ) => void
 }) {
   // Use the selected font for preview
-  const fontUrl = !rails && selectedFont === 'caladea'
-    ? '/fonts/Caladea_Pasta_Bold.json'
-    : fontUrls[selectedFont] || fontUrls.lato
-  const font = useLoader(FontLoader, fontUrl)
-  const textX = rails ? opening.x : 0
-  const textY = rails ? opening.y : 0
+  const font = useLoader(FontLoader, fontUrls[selectedFont] || fontUrls.lato)
 
-  const { geometry, sideGeometry, railWidth, railTop, railBottom, barHeight } = useMemo(() => {
+  const { geometry, railWidth, railTop, railBottom, barHeight } = useMemo(() => {
     const text = name.trim()
 
     // Houdini's rule: rails are at least 80% of the snowflake width.
@@ -297,13 +282,12 @@ function NameAndRails({
       }
     }
 
-    const finalScale = textSize
-      * (textMillimetersPerEm ?? RAIL_MM_PER_EM[selectedFont] ?? 8)
+    const finalScale = textSize * (RAIL_MM_PER_EM[selectedFont] ?? 8)
 
     const result = new TextGeometry(text, {
       font,
       size: 1,
-      depth: textDepth,
+      depth: TEXT_DEPTH_MM,
       curveSegments: 12,
       bevelEnabled: false,
     })
@@ -367,56 +351,21 @@ function NameAndRails({
     const bandTop = hasCapBand ? capTop : result.boundingBox!.max.y
     const bandHeight = bandTop - bandBottom
 
-    const bounds = result.boundingBox!
-    const boundsCenter = bounds.getCenter(new Vector3())
-    // The pasta Font SOP aligns relative to the baseline and top of
-    // the string. Preserve descenders below the aligned letter band.
-    const verticalCenter = rails ? (bandTop + bandBottom) / 2 : bounds.max.y / 2
-    const textTop = bounds.max.y - verticalCenter
-    const textBottom = bounds.min.y - verticalCenter
-    result.translate(-boundsCenter.x, -verticalCenter, -boundsCenter.z)
+    const boundsCenter = result.boundingBox!.getCenter(new Vector3())
+    result.translate(-boundsCenter.x, -(bandTop + bandBottom) / 2, -boundsCenter.z)
 
-    // Approximate the HDA's fixed-width planar outline expansion.
-    let sideGeometry: TextGeometry | null = null
-    if (textSideExpand > 0 && textSideDepth > 0) {
-      sideGeometry = new TextGeometry(text, {
-        font,
-        size: 1,
-        depth: textSideDepth,
-        curveSegments: 12,
-        bevelEnabled: true,
-        bevelThickness: 0,
-        bevelSize: textSideExpand / finalScale,
-        bevelSegments: 1,
-      })
-    }
-
-    if (sideGeometry) {
-      sideGeometry.scale(finalScale, finalScale, 1)
-      sideGeometry.translate(-boundsCenter.x, -verticalCenter, -textSideDepth / 2)
-      sideGeometry.computeBoundingBox()
-    }
-
-    const sideBounds = sideGeometry?.boundingBox
     return {
       geometry: result,
-      sideGeometry,
-      railWidth: rails ? railWidth : Math.max(
-        textWidth, 2 * Math.abs(sideBounds?.min.x ?? 0), 2 * Math.abs(sideBounds?.max.x ?? 0),
-      ),
-      railTop: rails ? opening.y + bandHeight / 2 : Math.max(textTop, sideBounds?.max.y ?? textTop),
-      railBottom: rails ? opening.y - bandHeight / 2 : Math.min(textBottom, sideBounds?.min.y ?? textBottom),
+      railWidth,
+      railTop: opening.y + bandHeight / 2,
+      railBottom: opening.y - bandHeight / 2,
       barHeight,
     }
-  }, [font, name, opening, textSize, selectedFont, rails,
-      textMillimetersPerEm, textDepth, textSideExpand, textSideDepth])
+  }, [font, name, opening, textSize, selectedFont, rails])
 
   useEffect(() => {
-    return () => {
-      geometry?.dispose()
-      sideGeometry?.dispose()
-    }
-  }, [geometry, sideGeometry])
+    return () => geometry?.dispose()
+  }, [geometry])
 
   // Report the rail footprint so the ornament can report its overall size.
   useEffect(() => {
@@ -451,27 +400,51 @@ function NameAndRails({
         <mesh
           geometry={geometry}
           position={[
-            textX,
-            textY,
+            opening.x,
+            opening.y,
             // Text extrudes forward from the ornament's back plane
             // (z = 0); the centered geometry starts at back + depth/2.
-            opening.z - opening.depth / 2 + textDepth / 2,
+            opening.z - opening.depth / 2 + TEXT_DEPTH_MM / 2,
           ]}
         >
           <GoldMaterial />
         </mesh>
       )}
 
-      {sideGeometry && (
-        <mesh
-          geometry={sideGeometry}
-          position={[
-            textX,
-            textY,
-            // The widened rim hugs the lettering's back end.
-            opening.z - opening.depth / 2 + textSideDepth / 2,
-          ]}
-        >
+    </group>
+  )
+}
+
+function ProfiledText({ name, textSize, fontUrl, profile, onBounds }: {
+  name: string
+  textSize: number
+  fontUrl: string
+  profile: TextPreviewProfile
+  onBounds: (bounds: Box3 | null) => void
+}) {
+  const font = useLoader(FontLoader, fontUrl)
+  const text = useMemo(
+    () => createTextPreview(name, font, textSize, profile),
+    [name, font, textSize, profile],
+  )
+
+  useEffect(() => {
+    onBounds(text?.bounds ?? null)
+    return () => {
+      text?.geometry.dispose()
+      text?.sideGeometry?.dispose()
+    }
+  }, [text, onBounds])
+
+  if (!text) return null
+
+  return (
+    <group>
+      <mesh geometry={text.geometry}>
+        <GoldMaterial />
+      </mesh>
+      {text.sideGeometry && (
+        <mesh geometry={text.sideGeometry}>
           <GoldMaterial />
         </mesh>
       )}
@@ -490,10 +463,7 @@ function Ornament({
   rails,
   clipping,
   flipNormals,
-  textMillimetersPerEm,
-  textDepth,
-  textSideExpand,
-  textSideDepth,
+  textPreview,
   onSize,
 }: {
   file: string
@@ -506,14 +476,13 @@ function Ornament({
   rails: boolean
   clipping: boolean
   flipNormals: boolean
-  textMillimetersPerEm?: number
-  textDepth?: number
-  textSideExpand?: number
-  textSideDepth?: number
+  textPreview?: TextPreviewProfile
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
   const sources = useLoader(STLLoader, [file, ...decorFiles])
   const source = sources[0]
+  const [textBounds, setTextBounds] = useState<Box3 | null>(null)
+  const textFontUrl = textPreview?.fontUrls[selectedFont]
 
   const [railDims, setRailDims] = useState<{
     width: number
@@ -586,23 +555,28 @@ function Ornament({
       maxY = Math.max(maxY, b.max.y)
     }
 
-    if (showName && railDims) {
+    if (showName && rails && railDims) {
       const halfWidth = railDims.width / 2
-      const halfBar = rails ? opening.barHeight / 2 : 0
-      const textX = rails ? opening.x : 0
-      minX = Math.min(minX, textX - halfWidth)
-      maxX = Math.max(maxX, textX + halfWidth)
+      const halfBar = opening.barHeight / 2
+      minX = Math.min(minX, opening.x - halfWidth)
+      maxX = Math.max(maxX, opening.x + halfWidth)
       minY = Math.min(minY, railDims.bottom - halfBar)
       maxY = Math.max(maxY, railDims.top + halfBar)
     }
 
-    onSize({
-      x: maxX - minX,
-      y: maxY - minY,
-      z: Math.max(bounds.max.z - bounds.min.z,
-        !rails && showName && railDims?.width ? textDepth ?? 0 : 0),
-    })
-  }, [geometry, decorGeometries, opening, showName, railDims, rails, textDepth, onSize])
+    let minZ = bounds.min.z
+    let maxZ = bounds.max.z
+    if (showName && textBounds) {
+      minX = Math.min(minX, textBounds.min.x)
+      maxX = Math.max(maxX, textBounds.max.x)
+      minY = Math.min(minY, textBounds.min.y)
+      maxY = Math.max(maxY, textBounds.max.y)
+      minZ = Math.min(minZ, textBounds.min.z)
+      maxZ = Math.max(maxZ, textBounds.max.z)
+    }
+
+    onSize({ x: maxX - minX, y: maxY - minY, z: maxZ - minZ })
+  }, [geometry, decorGeometries, opening, showName, railDims, rails, textBounds, onSize])
 
   useEffect(() => {
     return () => {
@@ -715,18 +689,26 @@ function Ornament({
 
         {showName && (
           <Suspense fallback={null}>
-            <NameAndRails
-              name={name}
-              opening={opening}
-              textSize={textSize}
-              selectedFont={selectedFont}
-              rails={rails}
-              textMillimetersPerEm={textMillimetersPerEm}
-              textDepth={textDepth}
-              textSideExpand={textSideExpand}
-              textSideDepth={textSideDepth}
-              onLayout={handleLayout}
-            />
+            {textPreview ? (
+              textFontUrl && (
+                <ProfiledText
+                  name={name}
+                  textSize={textSize}
+                  fontUrl={textFontUrl}
+                  profile={textPreview}
+                  onBounds={setTextBounds}
+                />
+              )
+            ) : (
+              <NameAndRails
+                name={name}
+                opening={opening}
+                textSize={textSize}
+                selectedFont={selectedFont}
+                rails={rails}
+                onLayout={handleLayout}
+              />
+            )}
           </Suspense>
         )}
       </group>
@@ -1475,10 +1457,7 @@ export default function App() {
                   rails={selectedDesign.rails}
                   clipping={selectedDesign.clipping}
                   flipNormals={selectedDesign.flipNormals}
-                  textMillimetersPerEm={selectedDesign.textMillimetersPerEm}
-                  textDepth={selectedDesign.textDepth}
-                  textSideExpand={selectedDesign.textSideExpand}
-                  textSideDepth={selectedDesign.textSideDepth}
+                  textPreview={selectedDesign.textPreview}
                   onSize={setOrnSize}
                 />
               )}

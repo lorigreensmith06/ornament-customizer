@@ -1,3 +1,5 @@
+import type { TextPreviewProfile } from '../textPreview'
+
 // Ornament design registry — add a new design by appending one entry
 // here and dropping its preview STL under public/models/. No component
 // changes are needed.
@@ -8,19 +10,13 @@
 //   blurb        one-line description on the Explore page card
 //   ornament     backend ornament id sent to POST /api/jobs
 //   backendDesign  classic-only: the HDA snowflake_design variant
-//   unitScale    STL coordinate units per displayed millimeter — the
-//                classic assets are already mm; pasta previews are in
-//                Houdini scene units
+//   unitScale    multiplier from STL coordinates to display millimeters
 //   fonts        font choices offered for this design
 //   rails        whether the name sits between upper/lower rails
 //   decorations  which decorator selects to show ('outer' | 'inner')
 //   clipping     whether base/decorators are cleared behind the name
 //   flipNormals  STL winding is reversed; flip normals at load
-//   textDepth    name extrusion depth in display-mm; defaults to the
-//                classic measured 5.55 mm
-//   textSideExpand  lateral outline expansion in font units —
-//                scales with the rendered letter height
-//   textSideDepth   z-depth of that widened rim in display-mm
+//   textPreview  optional Houdini-derived profile for unrailed text
 
 export type OrnamentId = 'classic' | 'pasta'
 
@@ -36,10 +32,7 @@ export interface OrnamentDesign {
   decorations: ('outer' | 'inner')[]
   clipping: boolean
   flipNormals: boolean
-  textMillimetersPerEm?: number
-  textDepth?: number
-  textSideExpand?: number
-  textSideDepth?: number
+  textPreview?: TextPreviewProfile
 }
 
 const classicFonts = [
@@ -107,12 +100,20 @@ export const ornamentDesigns: OrnamentDesign[] = [
     decorations: [],
     clipping: false,
     flipNormals: false,
-    // Font SOP size 1 is one em. The text transform scales by 0.25
-    // and the final STL transform scales XY by 60.
-    textMillimetersPerEm: 0.25 * 60,
-    // Measured from the v2 STL after the back clip and Z transform.
-    textDepth: 6.1875,
-    textSideExpand: 0.06 * 0.25 * 60,
-    textSideDepth: 5.34375,
+    textPreview: {
+      fontUrls: {
+        caladea: '/fonts/Caladea_Pasta_Bold.json',
+        lobster: '/fonts/Lobster_Regular.json',
+        oleo: '/fonts/PastaSwash_Bold.json',
+        unifraktur: '/fonts/UnifrakturMaguntia_Regular.json',
+      },
+      // Font SOP em to STL XY: 0.25 at text placement, 60 at export.
+      millimetersPerEm: 0.25 * 60,
+      originMm: [0, 0, 0],
+      anchor: [0.5, 0.5],
+      // Measured in the STL after clipping and the 0.75 Z transform.
+      depthMm: 6.1875,
+      rim: { expansionMm: 0.06 * 0.25 * 60, depthMm: 5.34375 },
+    },
   },
 ]
