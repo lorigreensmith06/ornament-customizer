@@ -66,6 +66,20 @@ export function createTextPreview(
     geometry.translate(x, y, backZ + bevel)
     const shaded = bevel > 0 ? toCreasedNormals(geometry) : geometry
     shaded.computeBoundingBox()
+
+    if (bevel > 0) {
+      // Keep the front cap flat-shaded where it meets the smoothed bevel.
+      const frontZ = shaded.boundingBox!.max.z
+      const position = shaded.getAttribute('position')
+      const normal = shaded.getAttribute('normal')
+      for (const group of shaded.groups) {
+        if (group.materialIndex !== 0) continue // ExtrudeGeometry caps
+        for (let i = group.start; i < group.start + group.count; i++) {
+          if (position.getZ(i) === frontZ) normal.setXYZ(i, 0, 0, 1)
+        }
+      }
+    }
+
     return shaded
   }
 
