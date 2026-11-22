@@ -830,9 +830,9 @@ export default function App() {
 
   const selectedDesign = designs.find((d) => d.file === selectedModel)
     ?? designs[0]
-  const allowsLowercase = selectedDesign.ornament === 'pasta'
-  const displayName = enteredName ?? (allowsLowercase ? 'Ashley' : 'THE SMITHS')
-  const name = allowsLowercase ? displayName : displayName.toUpperCase()
+  const isPasta = selectedDesign.ornament === 'pasta'
+  const displayName = enteredName ?? (isPasta ? 'Ashley' : 'THE SMITHS')
+  const name = isPasta ? displayName : displayName.toUpperCase()
 
   const paramsKey = JSON.stringify({
     name, selectedModel, showName, selectedFont, textSize,
@@ -1272,7 +1272,7 @@ export default function App() {
                 data-clarity-mask="true"
                 onChange={(event) =>
                   setEnteredName(
-                    (allowsLowercase ? event.target.value : event.target.value.toUpperCase())
+                    (isPasta ? event.target.value : event.target.value.toUpperCase())
                       .replace(/[^A-Za-z0-9 '\-]/g, '')
                       .slice(0, 24),
                   )
@@ -1427,16 +1427,16 @@ export default function App() {
               args={['#f2eee7']}
             />
 
-            <ambientLight intensity={1.5} />
+            <ambientLight intensity={isPasta ? 0.8 : 1.5} />
 
             <directionalLight
-              position={[3, 4, 6]}
-              intensity={2}
+              position={isPasta ? [-1.5, 2.5, 6] : [3, 4, 6]}
+              intensity={isPasta ? 2.6 : 2}
             />
 
             <directionalLight
-              position={[-3, -2, 2]}
-              intensity={1}
+              position={isPasta ? [3, -2, 2] : [-3, -2, 2]}
+              intensity={isPasta ? 0.75 : 1}
             />
 
             <Suspense fallback={null}>
