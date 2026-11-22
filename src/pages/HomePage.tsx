@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import heroImg from '../assets/ornament_main_image.png'
 import { galleryPhotos } from '../data/gallery'
@@ -48,6 +49,34 @@ const features = [
 ]
 
 export default function HomePage() {
+  const galleryTrack = useRef<HTMLDivElement>(null)
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd] = useState(galleryPhotos.length <= 1)
+
+  const updateGalleryControls = useCallback(() => {
+    const track = galleryTrack.current
+    if (!track) return
+    setAtStart(track.scrollLeft <= 1)
+    setAtEnd(track.scrollWidth - track.clientWidth - track.scrollLeft <= 1)
+  }, [])
+
+  useEffect(() => {
+    const track = galleryTrack.current
+    if (!track) return
+    const observer = new ResizeObserver(updateGalleryControls)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [updateGalleryControls])
+
+  function moveGallery(direction: -1 | 1) {
+    const track = galleryTrack.current
+    const first = track?.children[0]
+    const second = track?.children[1]
+    if (!track || !first || !second) return
+    const step = second.getBoundingClientRect().left - first.getBoundingClientRect().left
+    track.scrollBy({ left: step * direction })
+  }
+
   return (
     <div className="home">
       <section className="hero">
@@ -130,7 +159,15 @@ export default function HomePage() {
         <p className="gallery-sub">
           Real 3D-printed ornaments, created with Ornament Creator.
         </p>
-        <div className="gallery-grid">
+        <div
+          className="gallery-track"
+          id="printed-ornament-photos"
+          role="group"
+          aria-label="Printed ornament photos"
+          tabIndex={0}
+          onScroll={updateGalleryControls}
+          ref={galleryTrack}
+        >
           {galleryPhotos.map((photo) => {
             const img = (
               <img src={photo.image} alt={photo.alt} loading="lazy" />
@@ -148,6 +185,18 @@ export default function HomePage() {
               </figure>
             )
           })}
+        </div>
+        <div className="gallery-controls">
+          <button type="button" aria-label="Previous ornament photo"
+            aria-controls="printed-ornament-photos" disabled={atStart}
+            onClick={() => moveGallery(-1)}>
+            <span aria-hidden="true">←</span>
+          </button>
+          <button type="button" aria-label="Next ornament photo"
+            aria-controls="printed-ornament-photos" disabled={atEnd}
+            onClick={() => moveGallery(1)}>
+            <span aria-hidden="true">→</span>
+          </button>
         </div>
         <Link className="hero-cta" to="/create">
           Create Your Own Ornament →
