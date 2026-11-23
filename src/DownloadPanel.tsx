@@ -2,15 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { downloadOrderItem as fetchOrderItemDownload } from './orders'
+import { ornamentDesigns } from './data/designs'
 
 export const API = import.meta.env.DEV
   ? (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
   : 'https://api.ornamentcreator.com'
 
-const DESIGN_IDS: Record<string, string> = {
-  '/models/snowflake_two_pairs.stl': 'two_branch',
-  '/models/snowflake_three_pairs.stl': 'three_branch',
-  '/models/snowflake_longer_branches.stl': 'longer_branches',
+function designFor(file: string) {
+  return ornamentDesigns.find((d) => d.file === file)
 }
 
 type Job = {
@@ -64,6 +63,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   onAddToCart?: (product: 'stl' | 'printed') => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [overlayShown, setOverlayShown] = useState(false)
   const [buying, setBuying] = useState(false)
   const [purchaseKind, setPurchaseKind] = useState<'stl' | 'printed'>('stl')
   const [message, setMessage] = useState('')
@@ -86,6 +86,18 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   }, [name, selectedModel, showName, selectedFont, textSize,
       outerDecoration, innerDecoration])
 
+  // The preview overlay outlives `busy` briefly so it can fade out
+  // instead of vanishing the moment the job resolves.
+  useEffect(() => {
+    if (busy) {
+      setOverlayShown(true)
+      return
+    }
+    if (!overlayShown) return
+    const t = window.setTimeout(() => setOverlayShown(false), 400)
+    return () => window.clearTimeout(t)
+  }, [busy, overlayShown])
+
   async function generate() {
     if (active.current) return
     const controller = new AbortController()
@@ -96,20 +108,24 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     setSuccess(false)
     setMessage('Submitting…')
     try {
-      const design = DESIGN_IDS[selectedModel]
+      const design = designFor(selectedModel)
       if (!design) throw new Error('No generator mapping for this design.')
+      const body: Record<string, unknown> = {
+        name: showName ? name.trim() : '',
+        ornament: design.ornament,
+        show_text: showName,
+        font_style: selectedFont,
+        font_size: textSize,
+      }
+      if (design.backendDesign) {
+        body.snowflake_design = design.backendDesign
+        body.outer_decoration = outerDecoration ?? 'none'
+        body.inner_decoration = innerDecoration ?? 'none'
+      }
       const created = await readResponse(await fetch(`${API}/api/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: showName ? name.trim() : '',
-          snowflake_design: design,
-          show_text: showName,
-          font_style: selectedFont,
-          font_size: textSize,
-          outer_decoration: outerDecoration ?? 'none',
-          inner_decoration: innerDecoration ?? 'none',
-        }),
+        body: JSON.stringify(body),
         signal,
       })) as { id: string }
 
@@ -299,6 +315,32 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
             ✓ Payment successful — your STL is ready to download.
           </small>
         </>
+      )}
+      {overlayShown && createPortal(
+        <div className={`generating-overlay${busy ? '' : ' fading'}`}
+          role="status">
+          <div className="generating-card">
+            <svg className="generating-flake" viewBox="-12 -12 24 24"
+              aria-hidden="true" fill="none" stroke="currentColor"
+              strokeWidth="1.4" strokeLinecap="round">
+              <g id="gen-flake-arm">
+                <path d="M0 0V-9" />
+                <path d="M0 -4.5 -2.2 -6.7M0 -4.5 2.2 -6.7" />
+                <path d="M0 -7 -1.6 -8.6M0 -7 1.6 -8.6" />
+              </g>
+              <use href="#gen-flake-arm" transform="rotate(60)" />
+              <use href="#gen-flake-arm" transform="rotate(120)" />
+              <use href="#gen-flake-arm" transform="rotate(180)" />
+              <use href="#gen-flake-arm" transform="rotate(240)" />
+              <use href="#gen-flake-arm" transform="rotate(300)" />
+            </svg>
+            <p className="generating-text">Creating your ornament…</p>
+            {message && (
+              <p className="generating-sub">{message}</p>
+            )}
+          </div>
+        </div>,
+        document.querySelector('.preview') ?? document.body,
       )}
       {success && createPortal(
         <p className="success-banner" role="status">

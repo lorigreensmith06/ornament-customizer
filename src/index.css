@@ -163,6 +163,7 @@ body {
 /* ---------- Homepage ---------- */
 
 .home {
+  --home-feature-width: 1100px;
   flex: 1 0 auto;
 }
 
@@ -353,7 +354,7 @@ body {
 }
 
 .gallery-inner {
-  max-width: 840px;
+  max-width: 1150px;
   margin: 0 auto;
   padding: 4.5rem 1.5rem 4rem;
 }
@@ -372,15 +373,72 @@ body {
   line-height: 1.55;
 }
 
-.gallery-grid {
+.gallery-track {
+  --gallery-gap: 1.375rem;
+  display: flex;
+  gap: var(--gallery-gap);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.gallery-controls {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.gallery-controls button {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.15rem;
-  margin-bottom: 2.25rem;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.gallery-controls button:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.gallery-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.gallery-controls .gallery-autoplay {
+  width: auto;
+  padding: 0 0.8rem;
+  font-size: 0.8rem;
+  border-radius: 999px;
+}
+
+.gallery-track:focus-visible,
+.gallery-controls button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-track {
+    scroll-behavior: auto;
+  }
 }
 
 .gallery-item {
+  flex: 0 0 calc((100% - 2 * var(--gallery-gap)) / 3);
+  min-width: 0;
   margin: 0;
+  scroll-snap-align: start;
 }
 
 .gallery-link {
@@ -402,6 +460,12 @@ body {
   border-radius: 12px;
   border: 1px solid var(--border);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 1000px) {
+  .gallery-item {
+    flex-basis: calc((100% - var(--gallery-gap)) / 2);
+  }
 }
 
 /* ---------- Footer ---------- */
@@ -930,6 +994,12 @@ body {
   margin: 0;
 }
 
+@media (max-width: 1000px) {
+  .home {
+    --home-feature-width: 720px;
+  }
+}
+
 /* ---------- Collection feature (homepage) ---------- */
 
 .collection-feature {
@@ -942,6 +1012,13 @@ body {
   background: var(--cream);
   border: 1px solid var(--border);
   border-radius: 16px;
+}
+
+@media (width > 700px) {
+  .collection-feature {
+    max-width: var(--home-feature-width);
+    margin-inline: auto;
+  }
 }
 
 .collection-kicker {
@@ -1165,9 +1242,8 @@ body {
     padding: 3rem 1.25rem 3.5rem;
   }
 
-  .gallery-grid {
-    grid-template-columns: 1fr;
-    gap: 1.15rem;
+  .gallery-item {
+    flex-basis: 100%;
   }
 
   .gallery-inner {

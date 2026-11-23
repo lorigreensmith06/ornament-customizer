@@ -4,8 +4,7 @@
 //   1. Drop the optimized image (WebP preferred, portrait crop) in public/gallery/.
 //   2. Add an entry below with its /gallery/... path, descriptive alt text,
 //      and an optional caption and/or product link.
-//   No component changes are needed; new entries render automatically,
-//   three per row on desktop, wrapping to further rows, one per row on mobile.
+//   New entries appear in the single-row carousel automatically.
 
 export interface GalleryEntry {
   image: string
@@ -26,5 +25,10 @@ export const galleryPhotos: GalleryEntry[] = [
   {
     image: '/gallery/ornament-richard.webp',
     alt: '3D-printed gold snowflake ornament with the name RICHARD, hanging by a red ribbon on a Christmas tree',
+  },
+  {
+    image: '/gallery/snowflake_pasta_ornament.JPEG',
+    alt: 'Printed Pasta Snowflake ornament',
+    link: '/explore',
   },
 ]

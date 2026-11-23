@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import heroImg from '../assets/ornament_main_image.png'
 import { galleryPhotos } from '../data/gallery'
@@ -47,6 +48,54 @@ const features = [
 ]
 
 export default function HomePage() {
+  const galleryTrack = useRef<HTMLDivElement>(null)
+  const [atStart, setAtStart] = useState(true)
+  const [atEnd, setAtEnd] = useState(galleryPhotos.length <= 1)
+  const [autoAdvance, setAutoAdvance] = useState(
+    () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
+
+  const updateGalleryControls = useCallback(() => {
+    const track = galleryTrack.current
+    if (!track) return
+    setAtStart(track.scrollLeft <= 1)
+    setAtEnd(track.scrollWidth - track.clientWidth - track.scrollLeft <= 1)
+  }, [])
+
+  useEffect(() => {
+    const track = galleryTrack.current
+    if (!track) return
+    const observer = new ResizeObserver(updateGalleryControls)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [updateGalleryControls])
+
+  const moveGallery = useCallback((direction: -1 | 1, wrap = false) => {
+    const track = galleryTrack.current
+    const first = track?.children[0]
+    const second = track?.children[1]
+    if (!track || !first || !second) return
+    if (wrap && track.scrollWidth - track.clientWidth - track.scrollLeft <= 1) {
+      track.scrollTo({ left: 0 })
+      return
+    }
+    const step = second.getBoundingClientRect().left - first.getBoundingClientRect().left
+    track.scrollBy({ left: step * direction })
+  }, [])
+
+  useEffect(() => {
+    if (!autoAdvance) return
+    const timer = window.setInterval(() => {
+      const track = galleryTrack.current
+      if (!track || document.hidden || track.matches(':focus-within')) return
+      if (window.matchMedia('(hover: hover)').matches && track.matches(':hover')) return
+      const bounds = track.getBoundingClientRect()
+      if (bounds.bottom <= 0 || bounds.top >= window.innerHeight) return
+      moveGallery(1, true)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [autoAdvance, moveGallery])
+
   return (
     <div className="home">
       <section className="hero">
@@ -67,12 +116,70 @@ export default function HomePage() {
           </p>
           <div className="hero-actions">
             <Link className="hero-cta" to="/create">
-              Create Your Ornament →
+              Start Creating →
             </Link>
             <Link className="hero-cta-outline" to="/explore">
-              Shop Ornaments
+              Explore Designs
             </Link>
           </div>
+        </div>
+      </section>
+
+      <section className="gallery" aria-label="Customer ornaments">
+        <div className="gallery-inner">
+        <h2 className="gallery-title">From Design to Reality</h2>
+        <p className="gallery-sub">
+          Your designs, brought to life. See what's possible with
+          Ornament Creator.
+        </p>
+        <div
+          className="gallery-track"
+          id="printed-ornament-photos"
+          role="group"
+          aria-label="Printed ornament photos"
+          tabIndex={0}
+          onScroll={updateGalleryControls}
+          ref={galleryTrack}
+        >
+          {galleryPhotos.map((photo) => {
+            const img = (
+              <img src={photo.image} alt={photo.alt} loading="lazy" />
+            )
+            return (
+              <figure className="gallery-item" key={photo.image}>
+                {photo.link ? (
+                  <a className="gallery-link" href={photo.link}>{img}</a>
+                ) : (
+                  img
+                )}
+                {photo.caption && (
+                  <figcaption>{photo.caption}</figcaption>
+                )}
+              </figure>
+            )
+          })}
+        </div>
+        <div className="gallery-controls">
+          <button type="button" aria-label="Previous ornament photo"
+            aria-controls="printed-ornament-photos" disabled={atStart}
+            onClick={() => moveGallery(-1)}>
+            <span aria-hidden="true">←</span>
+          </button>
+          <button type="button" aria-label="Next ornament photo"
+            aria-controls="printed-ornament-photos" disabled={atEnd}
+            onClick={() => moveGallery(1)}>
+            <span aria-hidden="true">→</span>
+          </button>
+          <button type="button" className="gallery-autoplay"
+            aria-label={autoAdvance ? 'Pause automatic scrolling' : 'Start automatic scrolling'}
+            aria-controls="printed-ornament-photos"
+            onClick={() => setAutoAdvance((enabled) => !enabled)}>
+            {autoAdvance ? 'Pause' : 'Auto-scroll'}
+          </button>
+        </div>
+        <Link className="hero-cta" to="/create">
+          Create Your Own Ornament →
+        </Link>
         </div>
       </section>
 
@@ -96,37 +203,6 @@ export default function HomePage() {
             zoom={1.1}
           />
         </LazyView>
-      </section>
-
-      <section className="gallery" aria-label="Customer ornaments">
-        <div className="gallery-inner">
-        <h2 className="gallery-title">From Design to Reality</h2>
-        <p className="gallery-sub">
-          Real 3D-printed ornaments, created with Ornament Creator.
-        </p>
-        <div className="gallery-grid">
-          {galleryPhotos.map((photo) => {
-            const img = (
-              <img src={photo.image} alt={photo.alt} loading="lazy" />
-            )
-            return (
-              <figure className="gallery-item" key={photo.image}>
-                {photo.link ? (
-                  <a className="gallery-link" href={photo.link}>{img}</a>
-                ) : (
-                  img
-                )}
-                {photo.caption && (
-                  <figcaption>{photo.caption}</figcaption>
-                )}
-              </figure>
-            )
-          })}
-        </div>
-        <Link className="hero-cta" to="/create">
-          Create Your Own Ornament →
-        </Link>
-        </div>
       </section>
 
       <section className="features" aria-label="How it works">

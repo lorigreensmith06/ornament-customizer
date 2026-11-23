@@ -4,7 +4,7 @@ import { Canvas, useLoader } from '@react-three/fiber'
 import { OrbitControls, RoundedBox } from '@react-three/drei'
 import { Vector3 } from 'three'
 import { ACESFilmicToneMapping, Plane } from 'three'
-import type { BufferGeometry } from 'three'
+import type { Box3, BufferGeometry } from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
@@ -30,24 +30,10 @@ import TermsPage from './pages/TermsPage'
 import Footer from './components/Footer'
 import CookieConsent from './components/CookieConsent'
 import { initAnalytics, trackPageView } from './analytics'
+import { ornamentDesigns } from './data/designs'
+import { createTextPreview, type TextPreviewProfile } from './textPreview'
 
-const designs = [
-  {
-    label: 'Two Branch',
-    id: 'two_pairs',
-    file: '/models/snowflake_two_pairs.stl',
-  },
-  {
-    label: 'Three Branch',
-    id: 'three_pairs',
-    file: '/models/snowflake_three_pairs.stl',
-  },
-  {
-    label: 'Longer Branches',
-    id: 'longer_branches',
-    file: '/models/snowflake_longer_branches.stl',
-  },
-]
+const designs = ornamentDesigns
 
 const outerDecorations = [
   { label: 'None', value: 'none' },
@@ -65,34 +51,24 @@ const innerDecorations = [
 // Decoration preview STLs share the base snowflake's mm coordinate
 // frame; 'none' resolves to no extra layer. Inner decorations are
 // style-specific, outer are shared across styles.
-function decorationFiles(designId: string, outer: string, inner: string) {
+function decorationFiles(outer: string, inner: string, styleFile: string) {
   const files: string[] = []
   if (outer !== 'none') files.push(`/models/snowflake_outer_${outer}.stl`)
-  if (inner !== 'none') files.push(`/models/snowflake_inner_${designId}_${inner}.stl`)
+  if (inner !== 'none') {
+    const style = styleFile.match(/snowflake_(\w+)\.stl$/)?.[1]
+    if (style) files.push(`/models/snowflake_inner_${style}_${inner}.stl`)
+  }
   return files
 }
 
-const fonts = [
-  {
-    label: 'Lato Bold',
-    value: 'lato',
-  },
-  {
-    label: 'DejaVu Sans Bold',
-    value: 'dejavu',
-  },
-  {
-    label: 'Caladea Bold',
-    value: 'caladea',
-  },
-]
+
 
 // Font URL mapping for Three.js preview
-// Millimeters of cap height per unit of Name Size in the Houdini HDA.
+// Millimeters per em per unit of Name Size for the rail HDA.
 // Anchored on generated STLs: Lato/DejaVu match at 8.00; Caladea's
 // JSON metrics run ~3% narrow vs the installed TTF (rail_w 63.05 vs
 // preview 61.26 at size 1), so it gets its own factor.
-const MM_PER_SIZE: Record<string, number> = {
+const RAIL_MM_PER_EM: Record<string, number> = {
   lato: 8.00,
   dejavu: 8.00,
   caladea: 8.23,
@@ -127,6 +103,26 @@ const fontUrls: Record<string, string> = {
   arial: '/fonts/DejaVuSans_Bold.json',
   cambria: '/fonts/Caladea_Bold.json',
   montserrat: '/fonts/Lato_Bold.json',
+}
+
+// Some exported STL assets have inward-facing triangles (pasta);
+// reversing each triangle's winding flips its normals without
+// mirroring the geometry.
+function flipWinding(geometry: BufferGeometry) {
+  const pos = geometry.getAttribute('position')
+  const norm = geometry.getAttribute('normal')
+  for (let i = 0; i < pos.count; i += 3) {
+    for (const attr of [pos, norm]) {
+      if (!attr) continue
+      const ax = attr.getX(i + 1), ay = attr.getY(i + 1),
+        az = attr.getZ(i + 1)
+      attr.setXYZ(i + 1, attr.getX(i + 2), attr.getY(i + 2),
+        attr.getZ(i + 2))
+      attr.setXYZ(i + 2, ax, ay, az)
+    }
+  }
+  pos.needsUpdate = true
+  if (norm) norm.needsUpdate = true
 }
 
 // All dimensions below use the STL's original coordinates, before display scale.
@@ -252,12 +248,14 @@ function NameAndRails({
   opening,
   textSize,
   selectedFont,
+  rails,
   onLayout,
 }: {
   name: string
   opening: Opening
   textSize: number
   selectedFont: string
+  rails: boolean
   onLayout?: (
     railWidth: number,
     railTop: number,
@@ -277,12 +275,14 @@ function NameAndRails({
     if (!text) {
       return {
         geometry: null,
-        railWidth: minimumRailWidth,
+        railWidth: rails ? minimumRailWidth : 0,
         railTop: opening.top,
         railBottom: opening.bottom,
         barHeight: opening.barHeight,
       }
     }
+
+    const finalScale = textSize * (RAIL_MM_PER_EM[selectedFont] ?? 8)
 
     const result = new TextGeometry(text, {
       font,
@@ -301,16 +301,12 @@ function NameAndRails({
 
       return {
         geometry: null,
-        railWidth: minimumRailWidth,
+        railWidth: rails ? minimumRailWidth : 0,
         railTop: opening.top,
         railBottom: opening.bottom,
         barHeight: opening.barHeight,
       }
     }
-
-    // Absolute scale in millimeters matching the HDA's font_size,
-    // so each font keeps its natural cap-height/em ratio.
-    const finalScale = textSize * (MM_PER_SIZE[selectedFont] ?? 8.00)
 
     result.scale(finalScale, finalScale, 1)
 
@@ -322,14 +318,14 @@ function NameAndRails({
     const textHeight = textSizeScaled.y
 
     // HDA rule: rail thickness = 0.2 x rendered text bbox height.
-    const barHeight = textHeight * RAIL_HEIGHT_FRACTION
+    const barHeight = rails ? textHeight * RAIL_HEIGHT_FRACTION : 0
 
     // Rails centered on the capital band edges: letter tops/bottoms
     // overlap the rail inner faces, matching the generated STL where
     // text and rails are boole'd together.
-    const verticalPadding = 0
-
-    const railWidth = Math.max(minimumRailWidth, textWidth)
+    const railWidth = rails
+      ? Math.max(minimumRailWidth, textWidth)
+      : textWidth
 
     // Rails follow the capital-letter band (baseline to cap height,
     // measured from an "H" in the same font), not the whole string's
@@ -355,32 +351,20 @@ function NameAndRails({
     const bandTop = hasCapBand ? capTop : result.boundingBox!.max.y
     const bandHeight = bandTop - bandBottom
 
-    const railTop = opening.y + bandHeight / 2 + verticalPadding
-    const railBottom = opening.y - bandHeight / 2 - verticalPadding
-
-    // Center horizontally and in depth on the text's own bounds, and
-    // vertically on the capital band the rails were placed from.
     const boundsCenter = result.boundingBox!.getCenter(new Vector3())
-
-    result.translate(
-      -boundsCenter.x,
-      -(bandTop + bandBottom) / 2,
-      -boundsCenter.z,
-    )
+    result.translate(-boundsCenter.x, -(bandTop + bandBottom) / 2, -boundsCenter.z)
 
     return {
       geometry: result,
       railWidth,
-      railTop,
-      railBottom,
+      railTop: opening.y + bandHeight / 2,
+      railBottom: opening.y - bandHeight / 2,
       barHeight,
     }
-  }, [font, name, opening, textSize, selectedFont])
+  }, [font, name, opening, textSize, selectedFont, rails])
 
   useEffect(() => {
-    return () => {
-      geometry?.dispose()
-    }
+    return () => geometry?.dispose()
   }, [geometry])
 
   // Report the rail footprint so the ornament can report its overall size.
@@ -390,7 +374,7 @@ function NameAndRails({
 
   return (
     <group>
-      {geometry && (
+      {geometry && rails && (
         <>
           <RoundedBox
             args={[railWidth, barHeight, RAIL_DEPTH_MM]}
@@ -426,6 +410,44 @@ function NameAndRails({
           <GoldMaterial />
         </mesh>
       )}
+
+    </group>
+  )
+}
+
+function ProfiledText({ name, textSize, fontUrl, profile, onBounds }: {
+  name: string
+  textSize: number
+  fontUrl: string
+  profile: TextPreviewProfile
+  onBounds: (bounds: Box3 | null) => void
+}) {
+  const font = useLoader(FontLoader, fontUrl)
+  const text = useMemo(
+    () => createTextPreview(name, font, textSize, profile),
+    [name, font, textSize, profile],
+  )
+
+  useEffect(() => {
+    onBounds(text?.bounds ?? null)
+    return () => {
+      text?.geometry.dispose()
+      text?.sideGeometry?.dispose()
+    }
+  }, [text, onBounds])
+
+  if (!text) return null
+
+  return (
+    <group>
+      <mesh geometry={text.geometry} castShadow>
+        <GoldMaterial />
+      </mesh>
+      {text.sideGeometry && (
+        <mesh geometry={text.sideGeometry} receiveShadow>
+          <GoldMaterial />
+        </mesh>
+      )}
     </group>
   )
 }
@@ -437,6 +459,11 @@ function Ornament({
   showName,
   textSize,
   selectedFont,
+  unitScale,
+  rails,
+  clipping,
+  flipNormals,
+  textPreview,
   onSize,
 }: {
   file: string
@@ -445,10 +472,17 @@ function Ornament({
   showName: boolean
   textSize: number
   selectedFont: string
+  unitScale: number
+  rails: boolean
+  clipping: boolean
+  flipNormals: boolean
+  textPreview?: TextPreviewProfile
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
   const sources = useLoader(STLLoader, [file, ...decorFiles])
   const source = sources[0]
+  const [textBounds, setTextBounds] = useState<Box3 | null>(null)
+  const textFontUrl = textPreview?.fontUrls[selectedFont]
 
   const [railDims, setRailDims] = useState<{
     width: number
@@ -475,15 +509,23 @@ function Ornament({
 
   const { geometry, decorGeometries, opening } = useMemo(() => {
     // Do not center or otherwise mutate useLoader's cached STL.
-    const opening = measureOpening(source)
+    const base = source.clone()
+    // Preview assets may be authored in non-mm units (pasta scene
+    // units); normalize so layout math stays in millimeters.
+    if (unitScale !== 1) base.scale(unitScale, unitScale, unitScale)
+    if (flipNormals) flipWinding(base)
+    const opening = measureOpening(base)
 
     // Smooth normals across shallow angles; keep edges >= 60 deg hard.
-    const geometry = toCreasedNormals(source.clone(), Math.PI / 3)
+    const geometry = toCreasedNormals(base, Math.PI / 3)
 
     geometry.computeBoundingBox()
 
     const decorGeometries = sources.slice(1).map((decor) => {
-      const g = toCreasedNormals(decor.clone(), Math.PI / 3)
+      const d = decor.clone()
+      if (unitScale !== 1) d.scale(unitScale, unitScale, unitScale)
+      if (flipNormals) flipWinding(d)
+      const g = toCreasedNormals(d, Math.PI / 3)
       g.computeBoundingBox()
       return g
     })
@@ -493,7 +535,7 @@ function Ornament({
       decorGeometries,
       opening,
     }
-  }, [sources, source])
+  }, [sources, source, unitScale, flipNormals])
 
   // STL coordinates are millimeters; union the snowflake bbox with the
   // rail boxes for the approximate finished size.
@@ -513,7 +555,7 @@ function Ornament({
       maxY = Math.max(maxY, b.max.y)
     }
 
-    if (showName && railDims) {
+    if (showName && rails && railDims) {
       const halfWidth = railDims.width / 2
       const halfBar = opening.barHeight / 2
       minX = Math.min(minX, opening.x - halfWidth)
@@ -522,12 +564,19 @@ function Ornament({
       maxY = Math.max(maxY, railDims.top + halfBar)
     }
 
-    onSize({
-      x: maxX - minX,
-      y: maxY - minY,
-      z: bounds.max.z - bounds.min.z,
-    })
-  }, [geometry, decorGeometries, opening, showName, railDims, onSize])
+    let minZ = bounds.min.z
+    let maxZ = bounds.max.z
+    if (showName && textBounds) {
+      minX = Math.min(minX, textBounds.min.x)
+      maxX = Math.max(maxX, textBounds.max.x)
+      minY = Math.min(minY, textBounds.min.y)
+      maxY = Math.max(maxY, textBounds.max.y)
+      minZ = Math.min(minZ, textBounds.min.z)
+      maxZ = Math.max(maxZ, textBounds.max.z)
+    }
+
+    onSize({ x: maxX - minX, y: maxY - minY, z: maxZ - minZ })
+  }, [geometry, decorGeometries, opening, showName, railDims, rails, textBounds, onSize])
 
   useEffect(() => {
     return () => {
@@ -543,7 +592,7 @@ function Ornament({
   // the rails inside the band. Every boundary sits a quarter of the
   // rail thickness inside the rail so clipped ends stay hidden.
   const { basePlanes, decorPlanes } = useMemo(() => {
-    if (!railDims || !showName) {
+    if (!clipping || !railDims || !showName) {
       return { basePlanes: null, decorPlanes: null }
     }
     // The ornament group renders at scale 0.05 and is re-centered on
@@ -614,7 +663,7 @@ function Ornament({
             </mesh>
           ))
         ) : (
-          <mesh geometry={geometry}>
+          <mesh geometry={geometry} receiveShadow={Boolean(textPreview)}>
             <meshStandardMaterial {...goldProps} />
           </mesh>
         )}
@@ -640,13 +689,26 @@ function Ornament({
 
         {showName && (
           <Suspense fallback={null}>
-            <NameAndRails
-              name={name}
-              opening={opening}
-              textSize={textSize}
-              selectedFont={selectedFont}
-              onLayout={handleLayout}
-            />
+            {textPreview ? (
+              textFontUrl && (
+                <ProfiledText
+                  name={name}
+                  textSize={textSize}
+                  fontUrl={textFontUrl}
+                  profile={textPreview}
+                  onBounds={setTextBounds}
+                />
+              )
+            ) : (
+              <NameAndRails
+                name={name}
+                opening={opening}
+                textSize={textSize}
+                selectedFont={selectedFont}
+                rails={rails}
+                onLayout={handleLayout}
+              />
+            )}
           </Suspense>
         )}
       </group>
@@ -743,8 +805,7 @@ export default function App() {
   const [showName, setShowName] =
     useState(true)
 
-  const [name, setName] =
-    useState('THE SMITHS')
+  const [enteredName, setEnteredName] = useState<string | null>(null)
 
   const [selectedFont, setSelectedFont] =
     useState('lato')
@@ -767,14 +828,28 @@ export default function App() {
   const [ornSize, setOrnSize] =
     useState<{ x: number; y: number; z: number } | null>(null)
 
+  const selectedDesign = designs.find((d) => d.file === selectedModel)
+    ?? designs[0]
+  const isPasta = selectedDesign.ornament === 'pasta'
+  const displayName = enteredName ?? (isPasta ? 'Ashley' : 'THE SMITHS')
+  const name = isPasta ? displayName : displayName.toUpperCase()
+
   const paramsKey = JSON.stringify({
     name, selectedModel, showName, selectedFont, textSize,
     outerDecor, innerDecor,
   })
 
-  const selectedDesign = designs.find((d) => d.file === selectedModel)
-    ?? designs[0]
-  const decorFiles = decorationFiles(selectedDesign.id, outerDecor, innerDecor)
+  const decorFiles = selectedDesign.decorations.length
+    ? decorationFiles(outerDecor, innerDecor, selectedDesign.file)
+    : []
+
+  // Fonts differ per ornament family; fall back to the design's first
+  // font when the current selection isn't offered.
+  useEffect(() => {
+    if (!selectedDesign.fonts.some((f) => f.value === selectedFont)) {
+      setSelectedFont(selectedDesign.fonts[0].value)
+    }
+  }, [selectedDesign, selectedFont])
 
   const [generatedGeom, setGeneratedGeom] =
     useState<BufferGeometry | null>(null)
@@ -1059,7 +1134,7 @@ export default function App() {
             { order_id, key: access_token, dismissed: true }))
           recordOrder(order_id, access_token)
         }
-        setName(s.name)
+        setEnteredName(s.name)
         setSelectedModel(s.selectedModel)
         setShowName(s.showName)
         setSelectedFont(s.selectedFont)
@@ -1095,6 +1170,9 @@ export default function App() {
   }, [])
 
   const showingGenerated = generatedGeom != null && viewGenerated
+  const showLetterShadows = isPasta && showName && !showingGenerated
+  // The ornament uses 0.05 scene units per millimeter.
+  const shadowExtent = Math.max(3, Math.max(ornSize?.x ?? 0, ornSize?.y ?? 0) * 0.025 + 0.5)
   const changesPending = generatedGeom != null && generatedKey !== paramsKey
   // downloadUrl stays cached across param changes; the artifact only
   // matches the current customization when generatedKey === paramsKey.
@@ -1137,6 +1215,8 @@ export default function App() {
             ))}
           </select>
 
+          {selectedDesign.decorations.includes('outer') && (
+          <>
           <label htmlFor="outer-decor">Branch Tips</label>
           <select
             id="outer-decor"
@@ -1149,7 +1229,11 @@ export default function App() {
               </option>
             ))}
           </select>
+          </>
+          )}
 
+          {selectedDesign.decorations.includes('inner') && (
+          <>
           <label htmlFor="inner-decor">Branch Accents</label>
           <select
             id="inner-decor"
@@ -1162,6 +1246,8 @@ export default function App() {
               </option>
             ))}
           </select>
+          </>
+          )}
         </div>
 
         <div className="control-section">
@@ -1188,19 +1274,19 @@ export default function App() {
                 aria-describedby="name-help"
                 data-clarity-mask="true"
                 onChange={(event) =>
-                  setName(
-                    event.target.value
-                      .toUpperCase()
-                      .replace(/[^A-Z0-9 '\-]/g, ''),
+                  setEnteredName(
+                    (isPasta ? event.target.value : event.target.value.toUpperCase())
+                      .replace(/[^A-Za-z0-9 '\-]/g, '')
+                      .slice(0, 24),
                   )
                 }
               />
 
               <small id="name-help" className="help-text">
-                24 characters max · letters, numbers, and spaces only.
+                24 characters max · letters, numbers, spaces, apostrophes, and hyphens.
               </small>
 
-              {name !== '' && !/[A-Z0-9]/.test(name) && (
+              {name !== '' && !/[A-Za-z0-9]/.test(name) && (
                 <small className="field-error" role="alert">
                   Please enter at least one letter or number.
                 </small>
@@ -1212,7 +1298,7 @@ export default function App() {
                 value={selectedFont}
                 onChange={(event) => setSelectedFont(event.target.value)}
               >
-                {fonts.map((font) => (
+                {selectedDesign.fonts.map((font) => (
                   <option key={font.value} value={font.value}>
                     {font.label}
                   </option>
@@ -1328,6 +1414,8 @@ export default function App() {
           key={selectedModel}
         >
           <Canvas
+            shadows={isPasta ? 'percentage' : false}
+            frameloop={isPasta ? 'demand' : 'always'}
             camera={{
               position: [0, 0, 9],
               fov: 40,
@@ -1344,16 +1432,29 @@ export default function App() {
               args={['#f2eee7']}
             />
 
-            <ambientLight intensity={1.5} />
+            <ambientLight intensity={isPasta ? 0.8 : 1.5} />
 
             <directionalLight
-              position={[3, 4, 6]}
-              intensity={2}
-            />
+              position={isPasta ? [-1.5, 2.5, 6] : [3, 4, 6]}
+              intensity={isPasta ? 2.6 : 2}
+              castShadow={showLetterShadows}
+              shadow-mapSize={[1024, 1024]}
+              shadow-normalBias={0.003}
+              shadow-bias={-0.0001}
+              shadow-radius={2}
+              shadow-intensity={0.65}
+            >
+              {showLetterShadows && (
+                <orthographicCamera
+                  attach="shadow-camera"
+                  args={[-shadowExtent, shadowExtent, shadowExtent, -shadowExtent, 0.5, 18]}
+                />
+              )}
+            </directionalLight>
 
             <directionalLight
-              position={[-3, -2, 2]}
-              intensity={1}
+              position={isPasta ? [3, -2, 2] : [-3, -2, 2]}
+              intensity={isPasta ? 0.75 : 1}
             />
 
             <Suspense fallback={null}>
@@ -1370,6 +1471,11 @@ export default function App() {
                   showName={showName}
                   textSize={textSize}
                   selectedFont={selectedFont}
+                  unitScale={selectedDesign.unitScale}
+                  rails={selectedDesign.rails}
+                  clipping={selectedDesign.clipping}
+                  flipNormals={selectedDesign.flipNormals}
+                  textPreview={selectedDesign.textPreview}
                   onSize={setOrnSize}
                 />
               )}

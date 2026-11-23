@@ -585,6 +585,83 @@ body {
   box-shadow: 0 12px 30px rgb(60 45 20 / 10%);
 }
 
+/* Generation loading overlay */
+
+.generating-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: rgb(253 249 240 / 55%);
+  backdrop-filter: blur(3px);
+  opacity: 1;
+  transition: opacity 0.35s ease;
+  animation: generating-in 0.3s ease-out;
+}
+
+.generating-overlay.fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes generating-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.generating-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 1.2rem 1.7rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 8px 28px rgb(60 45 20 / 12%);
+}
+
+.generating-flake {
+  width: 2.4rem;
+  height: 2.4rem;
+  color: var(--gold-dark);
+  animation: generating-spin 14s linear infinite,
+    generating-breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes generating-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes generating-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.generating-text {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  color: var(--ink);
+}
+
+.generating-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generating-flake {
+    animation: none;
+  }
+}
+
 /* Viewport mode selector */
 
 .view-toggle {
