@@ -354,7 +354,7 @@ body {
 }
 
 .gallery-inner {
-  max-width: 840px;
+  max-width: 1150px;
   margin: 0 auto;
   padding: 4.5rem 1.5rem 4rem;
 }
@@ -374,7 +374,7 @@ body {
 }
 
 .gallery-track {
-  --gallery-gap: 1.15rem;
+  --gallery-gap: 1.375rem;
   display: flex;
   gap: var(--gallery-gap);
   overflow-x: auto;
@@ -460,6 +460,12 @@ body {
   border-radius: 12px;
   border: 1px solid var(--border);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 1000px) {
+  .gallery-item {
+    flex-basis: calc((100% - var(--gallery-gap)) / 2);
+  }
 }
 
 /* ---------- Footer ---------- */
