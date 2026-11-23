@@ -2,9 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import heroImg from '../assets/ornament_main_image.png'
 import { galleryPhotos } from '../data/gallery'
-import { ornamentDesigns } from '../data/designs'
 import AlphabetPreview from '../components/AlphabetPreview'
-import ModelThumb, { LazyView } from '../components/ModelThumb'
+import { LazyView } from '../components/ModelThumb'
 
 const features = [
   {
@@ -117,67 +116,21 @@ export default function HomePage() {
           </p>
           <div className="hero-actions">
             <Link className="hero-cta" to="/create">
-              Create Your Ornament →
+              Start Creating →
             </Link>
             <Link className="hero-cta-outline" to="/explore">
-              Shop Ornaments
+              Explore Designs
             </Link>
           </div>
         </div>
-      </section>
-
-      <section className="designs-feature" aria-label="Snowflake designs">
-        <h2 className="collection-heading">Personalized Snowflakes</h2>
-        <p className="collection-sub">
-          Pick a snowflake base, add a name, and make it yours.
-        </p>
-        <div className="design-grid">
-          {ornamentDesigns
-            .map((design) => (
-              <Link
-                key={design.file}
-                className="design-card"
-                to={`/create?design=${encodeURIComponent(design.file)}`}
-              >
-                <LazyView className="design-thumb-3d">
-                  <ModelThumb file={design.file}
-                    flipNormals={design.flipNormals} />
-                </LazyView>
-                <span className="design-name">{design.label}</span>
-                <span className="design-blurb">{design.blurb}</span>
-                <span className="design-cta">Customize →</span>
-              </Link>
-            ))}
-        </div>
-      </section>
-
-      <section className="collection-feature">
-        <div className="collection-feature-text">
-          <p className="collection-kicker">New collection</p>
-          <h2 className="collection-title">Introducing Funky Versals</h2>
-          <p className="collection-desc">
-            Ornate alphabet ornaments, sculpted and ready to print —
-            letters A–Z plus decorative pieces. Download the STL for $3
-            or have it printed in metallic bronze PLA for $15, with free
-            U.S. shipping.
-          </p>
-          <Link className="hero-cta" to="/alphabet">
-            Shop Alphabet Ornaments →
-          </Link>
-        </div>
-        <LazyView className="collection-feature-preview">
-          <AlphabetPreview
-            file="/models/alphabet/a.glb"
-            zoom={1.1}
-          />
-        </LazyView>
       </section>
 
       <section className="gallery" aria-label="Customer ornaments">
         <div className="gallery-inner">
         <h2 className="gallery-title">From Design to Reality</h2>
         <p className="gallery-sub">
-          Real 3D-printed ornaments, created with Ornament Creator.
+          Your designs, brought to life. See what's possible with
+          Ornament Creator.
         </p>
         <div
           className="gallery-track"
@@ -228,6 +181,28 @@ export default function HomePage() {
           Create Your Own Ornament →
         </Link>
         </div>
+      </section>
+
+      <section className="collection-feature">
+        <div className="collection-feature-text">
+          <p className="collection-kicker">New collection</p>
+          <h2 className="collection-title">Introducing Funky Versals</h2>
+          <p className="collection-desc">
+            Ornate alphabet ornaments, sculpted and ready to print —
+            letters A–Z plus decorative pieces. Download the STL for $3
+            or have it printed in metallic bronze PLA for $15, with free
+            U.S. shipping.
+          </p>
+          <Link className="hero-cta" to="/alphabet">
+            Shop Alphabet Ornaments →
+          </Link>
+        </div>
+        <LazyView className="collection-feature-preview">
+          <AlphabetPreview
+            file="/models/alphabet/a.glb"
+            zoom={1.1}
+          />
+        </LazyView>
       </section>
 
       <section className="features" aria-label="How it works">
