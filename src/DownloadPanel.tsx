@@ -63,6 +63,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   onAddToCart?: (product: 'stl' | 'printed') => void
 }) {
   const [busy, setBusy] = useState(false)
+  const [overlayShown, setOverlayShown] = useState(false)
   const [buying, setBuying] = useState(false)
   const [purchaseKind, setPurchaseKind] = useState<'stl' | 'printed'>('stl')
   const [message, setMessage] = useState('')
@@ -84,6 +85,18 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     return () => { active.current?.abort() }
   }, [name, selectedModel, showName, selectedFont, textSize,
       outerDecoration, innerDecoration])
+
+  // The preview overlay outlives `busy` briefly so it can fade out
+  // instead of vanishing the moment the job resolves.
+  useEffect(() => {
+    if (busy) {
+      setOverlayShown(true)
+      return
+    }
+    if (!overlayShown) return
+    const t = window.setTimeout(() => setOverlayShown(false), 400)
+    return () => window.clearTimeout(t)
+  }, [busy, overlayShown])
 
   async function generate() {
     if (active.current) return
@@ -302,6 +315,32 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
             ✓ Payment successful — your STL is ready to download.
           </small>
         </>
+      )}
+      {overlayShown && createPortal(
+        <div className={`generating-overlay${busy ? '' : ' fading'}`}
+          role="status">
+          <div className="generating-card">
+            <svg className="generating-flake" viewBox="-12 -12 24 24"
+              aria-hidden="true" fill="none" stroke="currentColor"
+              strokeWidth="1.4" strokeLinecap="round">
+              <g id="gen-flake-arm">
+                <path d="M0 0V-9" />
+                <path d="M0 -4.5 -2.2 -6.7M0 -4.5 2.2 -6.7" />
+                <path d="M0 -7 -1.6 -8.6M0 -7 1.6 -8.6" />
+              </g>
+              <use href="#gen-flake-arm" transform="rotate(60)" />
+              <use href="#gen-flake-arm" transform="rotate(120)" />
+              <use href="#gen-flake-arm" transform="rotate(180)" />
+              <use href="#gen-flake-arm" transform="rotate(240)" />
+              <use href="#gen-flake-arm" transform="rotate(300)" />
+            </svg>
+            <p className="generating-text">Creating your ornament…</p>
+            {message && (
+              <p className="generating-sub">{message}</p>
+            )}
+          </div>
+        </div>,
+        document.querySelector('.preview') ?? document.body,
       )}
       {success && createPortal(
         <p className="success-banner" role="status">
