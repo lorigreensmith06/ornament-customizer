@@ -38,7 +38,7 @@ type OrderItem = {
   label: string
 }
 
-export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, outerDecoration, innerDecoration, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, order, hasOrderAccess, onDismissOrder, onReady, onAddToCart, generatedJobId, previewUrl }: {
+export default function DownloadPanel({ name, selectedModel, showName, selectedFont, textSize, outerDecoration, innerDecoration, configParams, downloadUrl, stlValid, paid, paidSessionId, paramsKey, printedOrdered, order, hasOrderAccess, onDismissOrder, onReady, onAddToCart, generatedJobId, previewUrl }: {
 
   name: string
   selectedModel: string
@@ -47,6 +47,8 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
   textSize: number
   outerDecoration?: string
   innerDecoration?: string
+  // Config-driven ornaments submit their whole customization here.
+  configParams?: Record<string, unknown>
   downloadUrl?: string | null
   generatedJobId?: string | null
   previewUrl?: string | null
@@ -84,7 +86,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     setSuccess(false)
     return () => { active.current?.abort() }
   }, [name, selectedModel, showName, selectedFont, textSize,
-      outerDecoration, innerDecoration])
+      outerDecoration, innerDecoration, configParams])
 
   // The preview overlay outlives `busy` briefly so it can fade out
   // instead of vanishing the moment the job resolves.
@@ -110,14 +112,16 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     try {
       const design = designFor(selectedModel)
       if (!design) throw new Error('No generator mapping for this design.')
-      const body: Record<string, unknown> = {
-        name: showName ? name.trim() : '',
-        ornament: design.ornament,
-        show_text: showName,
-        font_style: selectedFont,
-        font_size: textSize,
-      }
-      if (design.backendDesign) {
+      const body: Record<string, unknown> = configParams
+        ? { ornament: design.ornament, params: configParams }
+        : {
+            name: showName ? name.trim() : '',
+            ornament: design.ornament,
+            show_text: showName,
+            font_style: selectedFont,
+            font_size: textSize,
+          }
+      if (!configParams && design.backendDesign) {
         body.snowflake_design = design.backendDesign
         body.outer_decoration = outerDecoration ?? 'none'
         body.inner_decoration = innerDecoration ?? 'none'
@@ -191,7 +195,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
       sessionStorage.setItem('pendingPurchase', JSON.stringify({
         name, selectedModel, showName, selectedFont, textSize,
         url: downloadUrl, preview: previewUrl, job: generatedJobId,
-        key: paramsKey, product,
+        key: paramsKey, product, params: configParams,
       }))
       window.location.href = url
     } catch (err) {
@@ -204,7 +208,7 @@ export default function DownloadPanel({ name, selectedModel, showName, selectedF
     <div style={{ marginTop: '1rem' }}>
       {!stlValid && (
         <button type="button" id="generate-stl-btn" onClick={generate}
-          disabled={busy || (showName && !/[A-Z0-9]/.test(name))}>
+          disabled={busy || (showName && !/[A-Za-z0-9]/.test(name))}>
           {busy ? 'Generating…' : 'Generate STL'}
         </button>
       )}

@@ -11,6 +11,8 @@ export type CartItem = {
   textSize: number
   outerDecor?: string
   innerDecor?: string
+  // Config-driven ornaments carry their customization as submitted.
+  params?: Record<string, unknown>
   downloadUrl: string
   previewUrl: string
   quantity: number

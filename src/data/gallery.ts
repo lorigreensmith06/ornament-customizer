@@ -31,4 +31,19 @@ export const galleryPhotos: GalleryEntry[] = [
     alt: 'Printed Pasta Snowflake ornament',
     link: '/explore',
   },
+  {
+    image: '/gallery/wreath_pentagon.webp',
+    alt: '3D-printed Pentagon Wreath ornament with silver MAX lettering on a gold geometric wreath, hanging by a red ribbon on a Christmas tree',
+    link: '/explore',
+  },
+  {
+    image: '/gallery/wreath_stars.webp',
+    alt: '3D-printed gold Star Wreath ornament with the name Emilie in blackletter lettering, hanging by a red ribbon on a Christmas tree',
+    link: '/explore',
+  },
+  {
+    image: '/gallery/wreath_squares.webp',
+    alt: '3D-printed gold Square Wreath ornament with the name Pete in gothic lettering, hanging by a red ribbon on a Christmas tree',
+    link: '/explore',
+  },
 ]
