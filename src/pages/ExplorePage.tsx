@@ -1,6 +1,8 @@
+import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import ModelThumb, { LazyView } from '../components/ModelThumb'
 import { ornamentDesigns } from '../data/designs'
+import { configCollections } from '../ornamentConfigs'
 
 export default function ExplorePage() {
   return (
@@ -17,7 +19,7 @@ export default function ExplorePage() {
         watch the 3D preview update live.
       </p>
       <div className="design-grid">
-        {ornamentDesigns.map((design) => (
+        {ornamentDesigns.filter((design) => !design.collection).map((design) => (
           <Link
             key={design.file}
             className="design-card"
@@ -33,6 +35,32 @@ export default function ExplorePage() {
           </Link>
         ))}
       </div>
+
+      {configCollections().map((collection) => (
+        <Fragment key={collection.id}>
+          <h2 className="collection-heading">{collection.heading}</h2>
+          {collection.sub && (
+            <p className="collection-sub">{collection.sub}</p>
+          )}
+          <div className="design-grid">
+            {collection.designs.map((design) => (
+              <Link
+                key={design.file}
+                className="design-card"
+                to={`/create?design=${encodeURIComponent(design.file)}`}
+              >
+                <LazyView className="design-thumb design-thumb-3d">
+                  <ModelThumb file={design.file}
+                    flipNormals={design.flipNormals} />
+                </LazyView>
+                <span className="design-name">{design.label}</span>
+                <span className="design-blurb">{design.blurb}</span>
+                <span className="design-cta">{collection.cta}</span>
+              </Link>
+            ))}
+          </div>
+        </Fragment>
+      ))}
 
       <h2 className="collection-heading">Funky Versals Alphabet Ornaments</h2>
       <p className="collection-sub">

@@ -17,8 +17,12 @@ import type { TextPreviewProfile } from '../textPreview'
 //   clipping     whether base/decorators are cleared behind the name
 //   flipNormals  STL winding is reversed; flip normals at load
 //   textPreview  optional Houdini-derived profile for unrailed text
+//   collection   groups designs under one heading on the Explore page
+//   configDefaults  set by the config-driven registry: marks the design
+//              as backend-configured and carries the param values that
+//              make this entry distinct (e.g. {shape: 'stars'})
 
-export type OrnamentId = 'classic' | 'pasta'
+export type OrnamentId = string
 
 export interface OrnamentDesign {
   label: string
@@ -33,6 +37,8 @@ export interface OrnamentDesign {
   clipping: boolean
   flipNormals: boolean
   textPreview?: TextPreviewProfile
+  collection?: string
+  configDefaults?: Record<string, unknown>
 }
 
 const classicFonts = [
@@ -118,3 +124,10 @@ export const ornamentDesigns: OrnamentDesign[] = [
     },
   },
 ]
+
+// Config-driven ornaments register their design entries at startup
+// (see ornamentConfigs.ts); they render in the same pickers as the
+// static entries above.
+export function registerDesigns(entries: OrnamentDesign[]) {
+  ornamentDesigns.push(...entries)
+}

@@ -32,6 +32,8 @@ import CookieConsent from './components/CookieConsent'
 import { initAnalytics, trackPageView } from './analytics'
 import { ornamentDesigns } from './data/designs'
 import { createTextPreview, type TextPreviewProfile } from './textPreview'
+import ConfigControls from './components/ConfigControls'
+import { configEntryFor, paramDefaults } from './ornamentConfigs'
 
 const designs = ornamentDesigns
 
@@ -233,12 +235,22 @@ function measureOpening(geometry: BufferGeometry) {
 
 type Opening = ReturnType<typeof measureOpening>
 
-function GoldMaterial() {
+type GoldMaterialProps = {
+  color?: string
+  metalness?: number
+  roughness?: number
+}
+
+function GoldMaterial({
+  color = '#c6a15b',
+  metalness = 0.7,
+  roughness = 0.4,
+}: GoldMaterialProps) {
   return (
     <meshStandardMaterial
-      color="#c6a15b"
-      metalness={0.7}
-      roughness={0.4}
+      color={color}
+      metalness={metalness}
+      roughness={roughness}
     />
   )
 }
@@ -415,11 +427,12 @@ function NameAndRails({
   )
 }
 
-function ProfiledText({ name, textSize, fontUrl, profile, onBounds }: {
+function ProfiledText({ name, textSize, fontUrl, profile, material, onBounds }: {
   name: string
   textSize: number
   fontUrl: string
   profile: TextPreviewProfile
+  material?: GoldMaterialProps
   onBounds: (bounds: Box3 | null) => void
 }) {
   const font = useLoader(FontLoader, fontUrl)
@@ -441,11 +454,11 @@ function ProfiledText({ name, textSize, fontUrl, profile, onBounds }: {
   return (
     <group>
       <mesh geometry={text.geometry} castShadow>
-        <GoldMaterial />
+        <GoldMaterial {...material} />
       </mesh>
       {text.sideGeometry && (
         <mesh geometry={text.sideGeometry} receiveShadow>
-          <GoldMaterial />
+          <GoldMaterial {...material} />
         </mesh>
       )}
     </group>
@@ -464,6 +477,8 @@ function Ornament({
   clipping,
   flipNormals,
   textPreview,
+  castShadow,
+  material,
   onSize,
 }: {
   file: string
@@ -477,6 +492,8 @@ function Ornament({
   clipping: boolean
   flipNormals: boolean
   textPreview?: TextPreviewProfile
+  castShadow?: boolean
+  material?: GoldMaterialProps
   onSize?: (size: { x: number; y: number; z: number }) => void
 }) {
   const sources = useLoader(STLLoader, [file, ...decorFiles])
@@ -637,9 +654,9 @@ function Ornament({
   }, [railDims, showName, opening])
 
   const goldProps = {
-    color: '#c6a15b' as const,
-    metalness: 0.7,
-    roughness: 0.4,
+    color: material?.color ?? '#c6a15b',
+    metalness: material?.metalness ?? 0.7,
+    roughness: material?.roughness ?? 0.4,
   }
 
   return (
@@ -663,7 +680,8 @@ function Ornament({
             </mesh>
           ))
         ) : (
-          <mesh geometry={geometry} receiveShadow={Boolean(textPreview)}>
+          <mesh geometry={geometry} receiveShadow={Boolean(textPreview)}
+            castShadow={castShadow}>
             <meshStandardMaterial {...goldProps} />
           </mesh>
         )}
@@ -696,6 +714,7 @@ function Ornament({
                   textSize={textSize}
                   fontUrl={textFontUrl}
                   profile={textPreview}
+                  material={material}
                   onBounds={setTextBounds}
                 />
               )
@@ -834,22 +853,72 @@ export default function App() {
   const displayName = enteredName ?? (isPasta ? 'Ashley' : 'THE SMITHS')
   const name = isPasta ? displayName : displayName.toUpperCase()
 
-  const paramsKey = JSON.stringify({
-    name, selectedModel, showName, selectedFont, textSize,
-    outerDecor, innerDecor,
-  })
+  // Config-driven ornaments keep their whole customization in a
+  // param bag seeded from the config defaults plus the design's own
+  // defaults (which gallery variant it represents).
+  const configEntry = configEntryFor(selectedDesign)
+  const config = configEntry?.config
+  const [configValues, setConfigValues] =
+    useState<Record<string, unknown>>({})
+  const [prevConfigModel, setPrevConfigModel] = useState<string | null>(null)
+
+  // Reseed config params when the selected design changes: config
+  // defaults, then the user's current values, then the design's own
+  // defaults (its gallery variant) on top.
+  if (selectedModel !== prevConfigModel) {
+    setPrevConfigModel(selectedModel)
+    if (configEntry) {
+      const base = paramDefaults(configEntry.config)
+      const kept = Object.fromEntries(configEntry.config.params
+        .map((p) => p.key)
+        .filter((key) => key in configValues)
+        .map((key) => [key, configValues[key]]))
+      setConfigValues(
+        { ...base, ...kept, ...configEntry.defaults })
+    }
+  }
+
+  // The preview param (e.g. shape) drives which STL file is shown;
+  // keep the design picker selection in sync both ways.
+  function updateConfigValue(key: string, value: unknown) {
+    setConfigValues((prev) => ({ ...prev, [key]: value }))
+    const modelParam = config?.preview?.modelParam
+    const model = key === modelParam
+      ? config?.preview?.models?.[String(value)]
+      : undefined
+    if (model && model !== selectedModel) setSelectedModel(model)
+  }
+
+  // Effective values for preview + submit: config params when the
+  // design is config-driven, legacy state otherwise.
+  const textBind = config?.preview?.text ?? {}
+  const effName = config
+    ? String(configValues[textBind.nameParam ?? ''] ?? '') : name
+  const effShowName = config
+    ? Boolean(configValues[textBind.toggleParam ?? '']) : showName
+  const effFont = config
+    ? String(configValues[textBind.fontParam ?? ''] ?? '') : selectedFont
+  const effTextSize = config
+    ? Number(configValues[textBind.sizeParam ?? ''] ?? 1) : textSize
+
+  const paramsKey = JSON.stringify(config
+    ? { ornament: config.id, params: configValues }
+    : { name, selectedModel, showName, selectedFont, textSize,
+        outerDecor, innerDecor })
 
   const decorFiles = selectedDesign.decorations.length
     ? decorationFiles(outerDecor, innerDecor, selectedDesign.file)
     : []
 
   // Fonts differ per ornament family; fall back to the design's first
-  // font when the current selection isn't offered.
+  // font when the current selection isn't offered. Config-driven
+  // designs manage their own font options.
   useEffect(() => {
-    if (!selectedDesign.fonts.some((f) => f.value === selectedFont)) {
+    if (!configEntry && selectedDesign.fonts.length
+        && !selectedDesign.fonts.some((f) => f.value === selectedFont)) {
       setSelectedFont(selectedDesign.fonts[0].value)
     }
-  }, [selectedDesign, selectedFont])
+  }, [selectedDesign, selectedFont, configEntry])
 
   const [generatedGeom, setGeneratedGeom] =
     useState<BufferGeometry | null>(null)
@@ -960,8 +1029,10 @@ export default function App() {
         id: crypto.randomUUID(),
         jobId: generatedJobId,
         product,
-        name, selectedModel, showName, selectedFont, textSize,
+        name: effName, selectedModel, showName: effShowName,
+        selectedFont: effFont, textSize: effTextSize,
         outerDecor, innerDecor,
+        params: config ? { ...configValues } : undefined,
         downloadUrl, previewUrl: generatedPreview,
         quantity: 1, addedAt: Date.now(),
       }]
@@ -1008,12 +1079,15 @@ export default function App() {
         digital_ack: digitalAck,
         items: items.map((i) => ({
           job_id: i.jobId, product: i.product, quantity: i.quantity,
-          params: {
-            name: i.showName ? i.name : '', design: i.selectedModel,
-            font: i.selectedFont, fontSize: i.textSize,
-            showName: i.showName,
-            outerDecoration: i.outerDecor, innerDecoration: i.innerDecor,
-          },
+          params: i.params
+            ? { ...i.params, design: i.selectedModel }
+            : {
+                name: i.showName ? i.name : '', design: i.selectedModel,
+                font: i.selectedFont, fontSize: i.textSize,
+                showName: i.showName,
+                outerDecoration: i.outerDecor,
+                innerDecoration: i.innerDecor,
+              },
         })),
       }),
     })
@@ -1026,18 +1100,23 @@ export default function App() {
       // Single-item carts reuse the legacy return path so an STL
       // purchase still unlocks its download.
       const item = items[0]
+      const design = designs.find((d) => d.file === item.selectedModel)
       sessionStorage.setItem('pendingPurchase', JSON.stringify({
         name: item.name, selectedModel: item.selectedModel,
         showName: item.showName, selectedFont: item.selectedFont,
         textSize: item.textSize, url: item.downloadUrl,
         preview: item.previewUrl, job: item.jobId, product: item.product,
         outerDecor: item.outerDecor, innerDecor: item.innerDecor,
-        key: JSON.stringify({
-          name: item.name, selectedModel: item.selectedModel,
-          showName: item.showName, selectedFont: item.selectedFont,
-          textSize: item.textSize,
-          outerDecor: item.outerDecor, innerDecor: item.innerDecor,
-        }),
+        params: item.params,
+        key: item.params && design
+          ? JSON.stringify(
+              { ornament: design.ornament, params: item.params })
+          : JSON.stringify({
+              name: item.name, selectedModel: item.selectedModel,
+              showName: item.showName, selectedFont: item.selectedFont,
+              textSize: item.textSize,
+              outerDecor: item.outerDecor, innerDecor: item.innerDecor,
+            }),
       }))
     } else {
       sessionStorage.setItem('pendingPurchase', JSON.stringify({
@@ -1077,7 +1156,7 @@ export default function App() {
     generatedLoad.current++
     setViewGenerated(false)
   }, [name, selectedModel, showName, selectedFont, textSize,
-      outerDecor, innerDecor])
+      outerDecor, innerDecor, configValues])
 
   // Returning from Stripe Checkout is a fresh page load: verify the
   // session server-side, then restore the purchased artifact from the
@@ -1139,6 +1218,7 @@ export default function App() {
         setShowName(s.showName)
         setSelectedFont(s.selectedFont)
         setTextSize(s.textSize)
+        if (s.params) setConfigValues(s.params)
         setOuterDecor(s.outerDecor ?? 'none')
         setInnerDecor(s.innerDecor ?? 'none')
         setDownloadUrl(s.url)
@@ -1170,7 +1250,22 @@ export default function App() {
   }, [])
 
   const showingGenerated = generatedGeom != null && viewGenerated
-  const showLetterShadows = isPasta && showName && !showingGenerated
+  // Preview lighting: config ornaments declare theirs; legacy designs
+  // keep the pasta/classic presets below.
+  const lighting = config?.preview?.lighting
+  const useShadows = Boolean(lighting?.shadows) || isPasta
+  const showLetterShadows =
+    (isPasta || Boolean(lighting?.letterShadows))
+    && effShowName && !showingGenerated
+  const ambientIntensity = lighting?.ambient ?? (isPasta ? 0.8 : 1.5)
+  const keyLight = lighting?.key
+  const keyPosition = keyLight?.position
+    ?? (isPasta ? [-1.5, 2.5, 6] as const : [3, 4, 6] as const)
+  const keyIntensity = keyLight?.intensity ?? (isPasta ? 2.6 : 2)
+  const fillLight = lighting?.fill
+  const fillPosition = fillLight?.position
+    ?? (isPasta ? [3, -2, 2] as const : [-3, -2, 2] as const)
+  const fillIntensity = fillLight?.intensity ?? (isPasta ? 0.75 : 1)
   // The ornament uses 0.05 scene units per millimeter.
   const shadowExtent = Math.max(3, Math.max(ornSize?.x ?? 0, ornSize?.y ?? 0) * 0.025 + 0.5)
   const changesPending = generatedGeom != null && generatedKey !== paramsKey
@@ -1255,6 +1350,24 @@ export default function App() {
             <span className="step-num">2</span>Personalize
           </div>
 
+          {config ? (
+            <ConfigControls
+              config={config}
+              values={configValues}
+              onChange={updateConfigValue}
+            >
+              {ornSize && (
+                <p className="orn-dims">
+                  ≈ {Math.round(ornSize.x)} × {Math.round(ornSize.y)} ×{' '}
+                  {Math.round(ornSize.z)} mm&ensp;(
+                  {(ornSize.x / 25.4).toFixed(1)} ×{' '}
+                  {(ornSize.y / 25.4).toFixed(1)} ×{' '}
+                  {(ornSize.z / 25.4).toFixed(1)} in)
+                </p>
+              )}
+            </ConfigControls>
+          ) : (
+          <>
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -1338,6 +1451,8 @@ export default function App() {
               </div>
             </div>
           )}
+          </>
+          )}
         </div>
 
         <div className="control-section">
@@ -1345,11 +1460,12 @@ export default function App() {
             <span className="step-num">3</span>Create
           </div>
           <DownloadPanel
-          name={name}
+          name={effName}
           selectedModel={selectedModel}
-          showName={showName}
-          selectedFont={selectedFont}
-          textSize={textSize}
+          showName={effShowName}
+          selectedFont={effFont}
+          textSize={effTextSize}
+          configParams={config ? configValues : undefined}
           outerDecoration={outerDecor}
           innerDecoration={innerDecor}
           downloadUrl={downloadUrl}
@@ -1414,8 +1530,8 @@ export default function App() {
           key={selectedModel}
         >
           <Canvas
-            shadows={isPasta ? 'percentage' : false}
-            frameloop={isPasta ? 'demand' : 'always'}
+            shadows={useShadows ? 'percentage' : false}
+            frameloop={useShadows ? 'demand' : 'always'}
             camera={{
               position: [0, 0, 9],
               fov: 40,
@@ -1432,17 +1548,17 @@ export default function App() {
               args={['#f2eee7']}
             />
 
-            <ambientLight intensity={isPasta ? 0.8 : 1.5} />
+            <ambientLight intensity={ambientIntensity} />
 
             <directionalLight
-              position={isPasta ? [-1.5, 2.5, 6] : [3, 4, 6]}
-              intensity={isPasta ? 2.6 : 2}
+              position={keyPosition as [number, number, number]}
+              intensity={keyIntensity}
               castShadow={showLetterShadows}
               shadow-mapSize={[1024, 1024]}
               shadow-normalBias={0.003}
               shadow-bias={-0.0001}
               shadow-radius={2}
-              shadow-intensity={0.65}
+              shadow-intensity={lighting?.shadowIntensity ?? 0.65}
             >
               {showLetterShadows && (
                 <orthographicCamera
@@ -1453,8 +1569,8 @@ export default function App() {
             </directionalLight>
 
             <directionalLight
-              position={isPasta ? [3, -2, 2] : [-3, -2, 2]}
-              intensity={isPasta ? 0.75 : 1}
+              position={fillPosition as [number, number, number]}
+              intensity={fillIntensity}
             />
 
             <Suspense fallback={null}>
@@ -1467,15 +1583,17 @@ export default function App() {
                 <Ornament
                   file={selectedModel}
                   decorFiles={decorFiles}
-                  name={name}
-                  showName={showName}
-                  textSize={textSize}
-                  selectedFont={selectedFont}
+                  name={effName}
+                  showName={effShowName}
+                  textSize={effTextSize}
+                  selectedFont={effFont}
                   unitScale={selectedDesign.unitScale}
                   rails={selectedDesign.rails}
                   clipping={selectedDesign.clipping}
                   flipNormals={selectedDesign.flipNormals}
                   textPreview={selectedDesign.textPreview}
+                  castShadow={Boolean(lighting?.selfShadows)}
+                  material={config?.preview?.material}
                   onSize={setOrnSize}
                 />
               )}
